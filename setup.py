@@ -11,11 +11,11 @@ with open("requirements.txt", "r", encoding='utf-16') as fh:
         requirements.append(line.replace("\n", "")) # \ufeff
 
 setuptools.setup(
-    name='crypt_utilities',  
-    version='0.0.1',
+    name='upm_oct_dataset_utils',  
+    version='0.0.2',
     author="Pablo García Mesa",
     author_email="pgmesa.sm@gmail.com",
-    description="Dataset utility package for UPM OCT study",
+    description="Dataset utility package for UPM OCT/OCTA study (MS, NMO and RIS)",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/pgmesa-upm/upm_oct_dataset_utils",
