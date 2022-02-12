@@ -6,7 +6,6 @@ import datetime
 from typing import Union
 from pathlib import Path
 from functools import cmp_to_key
-from numpy import dtype
 
 import pandas_read_xml as pdx
 
@@ -30,7 +29,7 @@ class StudyDate():
         try:
             datetime.datetime(year, month, day)
         except ValueError as err:
-            raise DateError(f"Date introduced is invalid -> '{err}'")
+            raise DateError(f"Date introduced format is invalid (dd-mm-yy) -> '{err}'")
         self.day = day; self.month = month; self.year = year
     
     def __str__(self) -> str:
@@ -38,6 +37,15 @@ class StudyDate():
     
     def as_str(self, sep='-') -> str:
         return str(self.day)+sep+str(self.month)+sep+str(self.year)
+    
+    @staticmethod
+    def from_str(string_date:str, sep='-') -> object:
+        day, month, year = string_date.split(sep)
+        try:
+            day = int(day); month = int(month); year = int(year)
+        except: 
+            raise DateError(f"Couldn't convert date numbers into 'int' -> day='{day}' | month='{month}' | year='{year}'")
+        return StudyDate(day, month, year)
 
 class DatasetAccessError(Exception):
     pass
