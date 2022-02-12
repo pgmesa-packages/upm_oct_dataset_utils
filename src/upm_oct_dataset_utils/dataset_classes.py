@@ -168,9 +168,13 @@ class RawDataset():
                 else:
                     patients.append(name)
         
-        def _compare(patient1:str, patient2:str):
-            num1 = int(patient1.split("-")[1])
-            num2 = int(patient2.split("-")[1])
+        def _compare(patient1:Union[str,int], patient2:Union[str,int]):
+            num1 = patient1
+            if type(patient1) is str: 
+                num1 = int(patient1.split("-")[1])
+            num2 = patient2
+            if type(patient2) is str:
+                num2 = int(patient2.split("-")[1])
             if num1 < num2:
                 return -1
             elif num1 > num2:
@@ -646,15 +650,32 @@ class CleanDataset():
                 if not os.path.exists(study_path/dir_name):
                     os.mkdir(study_path/dir_name)
         
-    def get_patients(self, group:str) -> list:
+    def get_patients(self, group:str, as_int:bool=False) -> list:
         group_path:Path = self.get_dir_path(group=group)
         file_names = os.listdir(group_path)
         patients = []
         for name in file_names:
-            if "patient-" in name: 
-                patients.append(name)
+            if "patient-" in name:
+                if as_int:
+                    patients.append(int(name.split("-")[1]))
+                else:
+                    patients.append(name)
         
-        return patients
+        def _compare(patient1:Union[str,int], patient2:Union[str,int]):
+            num1 = patient1
+            if type(patient1) is str: 
+                num1 = int(patient1.split("-")[1])
+            num2 = patient2
+            if type(patient2) is str:
+                num2 = int(patient2.split("-")[1])
+            if num1 < num2:
+                return -1
+            elif num1 > num2:
+                return 1
+            else:
+                return 0
+
+        return sorted(patients, key=cmp_to_key(_compare))
     
     def get_studies(self, group:str, patient_num:int, study:Union[int,StudyDate,list[int],list[StudyDate]]=None) -> list:
         patient_path:Path = self.get_dir_path(group=group, patient_num=patient_num)
