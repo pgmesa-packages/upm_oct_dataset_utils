@@ -180,7 +180,8 @@ class RawDataset():
             studies = []
             for std in study: 
                 name = self.get_study_dir(group=group, patient_num=patient_num, study=std)
-                studies.append(name)
+                if name not in studies:
+                    studies.append(name)
         else:
             studies = [self.get_study_dir(group=group, patient_num=patient_num, study=study)]
         
@@ -618,19 +619,24 @@ class CleanDataset():
         return path
  
     def create_patient(self, group:str, patient_num:int):
-        """Creates a patient directory tree in case it hasn't been created yet"""
+        """Creates a patient directory in case it hasn't been created yet"""
         try:
             self.get_dir_path(group=group, patient_num=patient_num)
         except DatasetAccessError:
             patient_path = self.get_dir_path(group=group)/f'patient-{patient_num}'
             os.mkdir(patient_path)
+
+    def create_study(self, group:str, patient_num:str, study:str):
+        """Creates a study directory tree in case it hasn't been created yet"""
+        try:
+            self.get_dir_path(group=group, patient_num=patient_num, study=study)
+        except DatasetAccessError:
+            study_path = self.get_dir_path(group=group, patient_num=patient_num)/study
+            os.mkdir(study_path)
             for dtype in self.data_types:
                 dir_name = self.data_types[dtype]['parent_dir']
-                if not os.path.exists(patient_path/dir_name):
-                    os.mkdir(patient_path/dir_name)
-
-    def create_study(self, group:str, patient_num:str, study):
-        ...
+                if not os.path.exists(study_path/dir_name):
+                    os.mkdir(study_path/dir_name)
         
     def get_patients(self, group:str) -> list:
         group_path:Path = self.get_dir_path(group=group)
@@ -650,7 +656,8 @@ class CleanDataset():
             studies = []
             for std in study: 
                 name = self.get_study_dir(group=group, patient_num=patient_num, study=std)
-                studies.append(name)
+                if name not in studies:
+                    studies.append(name)
         else:
             studies = [self.get_study_dir(group=group, patient_num=patient_num, study=study)]
         
