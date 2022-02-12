@@ -14,16 +14,19 @@ Arquitecure that the tree directory must follow in the raw dataset:
 ```
 - dataset_path
     (groups)
-    - CONTROL
+    - control
         (patients)
         - patient-1
-            - IMG
-                - PCZMI... .img (exported with Zeiss research licence)
+            - study_20-11-2021
+                - IMG
+                    - PCZMI... .img (exported with Zeiss research licence)
+                    ...
+                - retinography
+                    - O(S/D)_adqu-date_retinography.jpg
+                - XML
+                    - CZMI... .xml
+            - study_23-1-2022
                 ...
-            - retinography
-                - O(S/D)_adqu-date_retinography.jpg
-            - XML
-                - CZMI... .xml
         - patient-2
             ...
         - ...
