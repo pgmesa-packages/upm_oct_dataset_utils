@@ -498,29 +498,29 @@ class RawDataset():
                 else:
                     summary_dtypes = data_type
                 # Summary
-                print(f" + SUMMARY:")
+                print(f" + SUMMARY (queried-studies={num_studies}):")
                 # OCT
                 total_octs = 0
                 if OCT in summary_dtypes:
-                    total_octs = num_patients*4*num_studies
+                    total_octs = 4*num_studies
                     oct_perc =  round((total_octs-m_oct)*100/total_octs, 2)
                     print(f'     -> OCT Cubes => {total_octs-m_oct}/{total_octs} ({oct_perc}%) -> ({m_oct} missing)')
                 # OCTA
                 total_octas = 0;
                 if OCTA in summary_dtypes:
-                    total_octas = num_patients*4*num_studies
+                    total_octas = 4*num_studies
                     octa_perc =  round((total_octas-m_octa)*100/total_octas, 2)
                     print(f'     -> OCTA Cubes => {total_octas-m_octa}/{total_octas} ({octa_perc}%) -> ({m_octa} missing)')
                 # Retinographies
                 total_retinos = 0;
                 if RET in summary_dtypes:
-                    total_retinos = num_patients*2*num_studies
+                    total_retinos = 2*num_studies
                     ret_perc =  round((total_retinos-m_ret)*100/total_retinos, 2)
                     print(f'     -> Retina Images => {total_retinos-m_ret}/{total_retinos} ({ret_perc}%) -> ({m_ret} missing)')
                 # XML scans analysis
                 total_xml = 0;
                 if XML in summary_dtypes:
-                    total_xml = num_patients*8*num_studies
+                    total_xml = 8*num_studies
                     xml_perc =  round((total_xml-m_xml)*100/total_xml, 2)
                     print(f'     -> XML scans => {total_xml-m_xml}/{total_xml} ({xml_perc}%) -> ({m_xml} missing)')
                 # Global 
@@ -931,25 +931,25 @@ class CleanDataset():
                 # OCT
                 total_octs = 0
                 if OCT in summary_dtypes:
-                    total_octs = num_patients*4*num_studies
+                    total_octs = 4*num_studies
                     oct_perc =  round((total_octs-m_oct)*100/total_octs, 2)
                     print(f'     -> OCT Cubes => {total_octs-m_oct}/{total_octs} ({oct_perc}%) -> ({m_oct} missing)')
                 # OCTA
                 total_octas = 0;
                 if OCTA in summary_dtypes:
-                    total_octas = num_patients*4*num_studies
+                    total_octas = 4*num_studies
                     octa_perc =  round((total_octas-m_octa)*100/total_octas, 2)
                     print(f'     -> OCTA Cubes => {total_octas-m_octa}/{total_octas} ({octa_perc}%) -> ({m_octa} missing)')
                 # Retinographies
                 total_retinos = 0;
                 if RET in summary_dtypes:
-                    total_retinos = num_patients*2*num_studies
+                    total_retinos = 2*num_studies
                     ret_perc =  round((total_retinos-m_ret)*100/total_retinos, 2)
                     print(f'     -> Retina Images => {total_retinos-m_ret}/{total_retinos} ({ret_perc}%) -> ({m_ret} missing)')
                 # XML scans analysis
                 total_xml = 0;
                 if XML in summary_dtypes:
-                    total_xml = num_patients*8*num_studies
+                    total_xml = 8*num_studies
                     xml_perc =  round((total_xml-m_xml)*100/total_xml, 2)
                     print(f'     -> JSON scans => {total_xml-m_xml}/{total_xml} ({xml_perc}%) -> ({m_xml} missing)')
                 # Global 
