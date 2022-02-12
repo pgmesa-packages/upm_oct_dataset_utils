@@ -685,11 +685,11 @@ class CleanDataset():
         
         def _get_dtype(grp:str, p_num:int, std:str, d_type:str) -> dict:
             data_type_info = {}
-            if d_type == 'OCT' or d_type == 'OCTA':
+            if d_type == OCT or d_type == OCTA:
                 data_type_info = self._get_img_paths(grp, p_num, std, d_type, zone=zone, eye=eye)
-            elif d_type == 'retinography':
+            elif d_type == RET:
                 data_type_info = self._get_retinography_paths(grp, p_num, std, eye=eye)
-            elif d_type == 'XML':
+            elif d_type == XML:
                 data_type_info = self._get_analysis_path(grp, p_num, std)
         
             return data_type_info
@@ -744,13 +744,13 @@ class CleanDataset():
         if group is not None and type(patient_num) is int and type(data_type) is str and type(study) is not list:
             study_dir = self.get_study_dir(group, patient_num, study)
             try:   
-                if data_type == 'OCT' or data_type == 'OCTA':
+                if data_type == OCT or data_type == OCTA:
                     if data_type is not None and zone is not None and eye is not None:  
                         data = data[group][f'patient-{patient_num}'][study_dir][data_type][zone][eye]
-                elif data_type == 'retinography':
+                elif data_type == RET:
                     if data_type is not None and zone is not None and eye is not None:  
                         data = data[group][f'patient-{patient_num}'][study_dir][data_type][eye]
-                elif data_type == 'XML':
+                elif data_type == XML:
                     data = data[group][f'patient-{patient_num}'][study_dir][data_type]
                     if not bool(data): raise KeyError
             except KeyError:
@@ -780,7 +780,7 @@ class CleanDataset():
         return img_data
     
     def _get_retinography_paths(self, group:str, patient_num:int, study:str, eye:str=None) -> dict:
-        data_type = 'retinography'
+        data_type = RET
         path = self.get_dir_path(group=group, patient_num=patient_num, study=study, data_type=data_type)
         img_data = {}
         if os.path.isdir(path):
@@ -795,7 +795,7 @@ class CleanDataset():
         return img_data
         
     def _get_analysis_path(self, group:str, patient_num:int, study:str) -> dict:
-        data_type = 'XML'; name = f'patient-{patient_num}_'+self.file_suffixes[data_type]
+        data_type = XML; name = f'patient-{patient_num}_'+self.file_suffixes[data_type]
         analysis_path = self.get_dir_path(group=group, patient_num=patient_num, study=study, data_type=data_type)/name
         analysis = {}
         if os.path.exists(analysis_path):
@@ -846,51 +846,51 @@ class CleanDataset():
                         missing_info = {}; num_studies += 1
                         for dtype in self.data_types:
                             if data_type is not None and dtype not in data_type: continue
-                            if dtype == 'retinography':
+                            if dtype == RET:
                                 ret_info = p_info.get(dtype, None)
                                 if not bool(ret_info):
                                     missing_info[dtype] = 'OD and OS missing'
                                     has_missing_info = True; m_ret += 2
                                 else:
                                     for i in range(2):
-                                        eye = 'right' if i == 0 else 'left'
+                                        eye = OD if i == 0 else OS
                                         eye_info = ret_info.get(eye, None)
                                         if not bool(eye_info):
                                             missing_info[dtype] = f'{eye} missing'
                                             has_missing_info = True; m_ret += 1
-                            if dtype == 'OCT' or dtype == 'OCTA':
+                            if dtype == OCT or dtype == OCTA:
                                 img_info = p_info.get(dtype, None)
                                 if not bool(img_info):
                                     missing_info[dtype] = '2x macular (OD, OS), 2x optic nerve (OD, OS)'
                                     has_missing_info = True;
-                                    if dtype == 'OCT': m_oct += 4
-                                    elif dtype == 'OCTA': m_octa += 4
+                                    if dtype == OCT: m_oct += 4
+                                    elif dtype == OCTA: m_octa += 4
                                 else:
                                     for i in range(2):
-                                        zone = 'macula' if i == 0 else 'optic-nerve'
+                                        zone = MACULA if i == 0 else OPTIC_DISC
                                         zone_info = img_info.get(zone, None)
                                         if not bool(zone_info):
                                             missing_info[dtype] = f'2x {zone} (OD, OS)'
                                             has_missing_info = True
-                                            if dtype == 'OCT': m_oct += 2
-                                            elif dtype == 'OCTA': m_octa += 2
+                                            if dtype == OCT: m_oct += 2
+                                            elif dtype == OCTA: m_octa += 2
                                         else:
                                             for i in range(2):
-                                                eye = 'right' if i == 0 else 'left'
+                                                eye = OD if i == 0 else OS
                                                 eye_info = zone_info.get(eye, None)
                                                 if not bool(eye_info):
                                                     missing_info[dtype] = f'{zone} {eye} missing'
                                                     has_missing_info = True
-                                                    if dtype == 'OCT': m_oct += 1
-                                                    elif dtype == 'OCTA': m_octa += 1
-                            if dtype == 'XML':
+                                                    if dtype == OCT: m_oct += 1
+                                                    elif dtype == OCTA: m_octa += 1
+                            if dtype == XML:
                                 xml_files = p_info.get(dtype, None)
                                 if not bool(xml_files):
                                     missing_info[dtype] = "all 8 scans analysis report are missing"
                                     m_xml += 8; has_missing_info = True
                                 else:
                                     for i in range(2):
-                                        modality = 'OCT' if i == 0 else 'OCTA'
+                                        modality = OCT if i == 0 else OCTA
                                         for zone in self.zones:
                                             for eye in self.eyes.values():
                                                 scan_name = modality+"_"+zone+"_"+eye
@@ -922,25 +922,25 @@ class CleanDataset():
                 print(f" + SUMMARY:")
                 # OCT
                 total_octs = 0
-                if 'OCT' in summary_dtypes:
+                if OCT in summary_dtypes:
                     total_octs = num_patients*4*num_studies
                     oct_perc =  round((total_octs-m_oct)*100/total_octs, 2)
                     print(f'     -> OCT Cubes => {total_octs-m_oct}/{total_octs} ({oct_perc}%) -> ({m_oct} missing)')
                 # OCTA
                 total_octas = 0;
-                if 'OCTA' in summary_dtypes:
+                if OCTA in summary_dtypes:
                     total_octas = num_patients*4*num_studies
                     octa_perc =  round((total_octas-m_octa)*100/total_octas, 2)
                     print(f'     -> OCTA Cubes => {total_octas-m_octa}/{total_octas} ({octa_perc}%) -> ({m_octa} missing)')
                 # Retinographies
                 total_retinos = 0;
-                if 'retinography' in summary_dtypes:
+                if RET in summary_dtypes:
                     total_retinos = num_patients*2*num_studies
                     ret_perc =  round((total_retinos-m_ret)*100/total_retinos, 2)
                     print(f'     -> Retina Images => {total_retinos-m_ret}/{total_retinos} ({ret_perc}%) -> ({m_ret} missing)')
                 # XML scans analysis
                 total_xml = 0;
-                if 'XML' in summary_dtypes:
+                if XML in summary_dtypes:
                     total_xml = num_patients*8*num_studies
                     xml_perc =  round((total_xml-m_xml)*100/total_xml, 2)
                     print(f'     -> JSON scans => {total_xml-m_xml}/{total_xml} ({xml_perc}%) -> ({m_xml} missing)')
