@@ -157,3 +157,30 @@ for group, patients_data in raw_data_paths.items():
                         file_path = clean_path/file_name
                         tiff.imwrite(file_path, data)
 ```
+Clean Dataset directory tree
+```
+- dataset_path
+    (groups)
+    - control
+        (patients)
+        - patient-1
+            - study_20-11-2021
+                - OCT
+                    - patient-1_adqu-type_adqu-date_O(S/D).tiff
+                - OCTA
+                    ...
+                - retinography
+                    - patient-1_retinography_adqu-date_O(S/D).jpg
+                - patient-1_analysis.json
+            - study_23-1-2022
+                ...
+        - patient-2
+            ...
+        - ...
+    - MS
+        ...
+    - NMO
+        ...
+    - RIS
+        ...
+```
