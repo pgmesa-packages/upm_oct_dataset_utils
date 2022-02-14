@@ -283,7 +283,7 @@ class RawDataset():
                 for std in studies:
                     data[grp][f'patient-{patient_num}'][std] = _get_data_oftype(grp, patient_num, std, d_type=data_type)
         # Vemos si se nos ha especificado un unico path en concreto para devolver solo ese en vez del dict entero
-        if group is not None and type(patient_num) is int and type(data_type) is str and type(study) is not list:
+        if type(group) is str and type(patient_num) is int and type(data_type) is str and (type(study) is int or type(study) is StudyDate):
             study_dir = self.get_study_dir(group, patient_num, study)
             try:   
                 if data_type == OCT or data_type == OCTA:
@@ -770,7 +770,7 @@ class CleanDataset():
                 for std in studies:
                     data[grp][f'patient-{patient_num}'][std] = _get_data_oftype(grp, patient_num, std, d_type=data_type)
         # Vemos si se nos ha especificado un unico path en concreto para devolver solo ese en vez del dict entero
-        if group is not None and type(patient_num) is int and type(data_type) is str and type(study) is not list:
+        if type(group) is str and type(patient_num) is int and type(data_type) is str and (type(study) is int or type(study) is StudyDate):
             study_dir = self.get_study_dir(group, patient_num, study)
             try:   
                 if data_type == OCT or data_type == OCTA:
