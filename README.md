@@ -1,4 +1,4 @@
-# UPM package for managing the OCT study dataset
+# UPM package for managing the OCT/OCTA study dataset
 
 Package that offers some functionalities to easily work, create, manage and organize a dataset for an study that works with raw (.img) OCT/OCTA volumes and XML scans analysis, exported from the Cirrus Zeiss 5000 with the Zeiss research license. This code in specific for the UPM multiple sclerosis, NMO and RIS study (2021-2022), but it can serve as a base to fit a great range of other necessities related with the topic. The idea is to have two different directories to store data: a raw dataset with the exported data (.img) from the device and a clean dataset where the processed data from the raw dataset will be stored. To train an IA with the clean dataset, is as simple as clean_ds.get-data_paths(-query-) to get all data paths you need and then create for example a tensorflow dataset to load the data durig the training.
 
