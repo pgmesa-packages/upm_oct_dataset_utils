@@ -1,6 +1,16 @@
 # UPM package for managing the OCT/OCTA study dataset
 
-Package that offers some functionalities to easily work, create, manage and organize a dataset for an study that works with raw (.img) OCT/OCTA volumes and XML scans analysis, exported from the Cirrus Zeiss 5000 with the Zeiss research license. This code in specific for the UPM multiple sclerosis, NMO and RIS study (2021-2022), but it can serve as a base to fit a great range of other necessities related with the topic. The idea is to have two different directories to store data: a raw dataset with the exported data (.img) from the device and a clean dataset where the processed data from the raw dataset will be stored. To train an IA with the clean dataset, is as simple as clean_ds.get_data_paths(-query-) to get all data paths you need and then create for example a tensorflow dataset to load the data durig the training.
+Package that offers some functionalities to easily work, create, manage and organize a dataset for an study that works with raw (.img) OCT/OCTA volumes and XML scans analysis, exported from the Cirrus Zeiss 5000 with the Zeiss research license. This code in specific for the UPM multiple sclerosis, NMO and RIS study (2021-2022), but it can serve as a base to fit a great range of other necessities related with the topic. The idea is to have two different directories to store data: a raw dataset with the exported data (.img) from the device and a clean dataset where the processed data from the raw dataset will be stored. To train an AI with the clean dataset, is as simple as clean_ds.get_data_paths(-query-) to get all data paths you need and then create for example a tensorflow dataset to load the data durig the training.
+
+Each study is defined to be:
+- 4 OCT, 2 macular volumes (one for each eye), 2 optic-disc volumes (one for each eye)
+- 4 OCTA 2 macular volumes (one for each eye), 2 optic-disc volumes (one for each eye)
+- 2 retinographies (one for each eye)
+- x number of XML files, that expect to contain the analysis of each OCT and OCTA scan (they can be in different files).
+
+If more than one scan is added to the OCT and OCTA scans, the most recent one will be used.
+
+In OCT the important file is the 'cube_z.img' and in OCTA 'flowcube_z.img'
 
 ## Installation
 ```
@@ -20,6 +30,7 @@ Default arquitecure that the tree directory must follow in the raw dataset:
             (exported with Zeiss research licence)
             - PCZMI515190478 20160414
                 PCZMI515190478_Macular Cube 512x128_4-14-2016_9-5-35_OD_sn99960_cube_z.img
+                PCZMI515190478_Macular Cube 512x128_4-14-2016_9-5-35_OD_sn99960_cube_raw.img
                 ...
                 - retinography
                     - O(S/D)_adqu-date_retinography.jpg

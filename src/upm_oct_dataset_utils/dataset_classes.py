@@ -667,9 +667,7 @@ class CleanDataset():
             raise DatasetAccessError(f"'{patient}' doesn't exist in '{group}' group")
         # Studies
         if study is None: return path
-        std_date_raw = study.split(" ")[1]
-        std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
-        path = path/f"study_{std_date}"
+        path = path/study
         if not os.path.isdir(path):
             raise DatasetAccessError(f"'{study}' doesn't exist in '{patient}' of '{group}' group")
         # Data type
@@ -694,10 +692,7 @@ class CleanDataset():
         try:
             self.get_dir_path(group=group, patient_num=patient_num, study=study)
         except DatasetAccessError:
-            std_date_raw = study.split(" ")[1]
-            std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
-            clean_std_name = "study_"+std_date
-            study_path = self.get_dir_path(group=group, patient_num=patient_num)/clean_std_name
+            study_path = self.get_dir_path(group=group, patient_num=patient_num)/study
             os.mkdir(study_path)
             for dtype in self.data_types:
                 dir_name = self.data_types[dtype]['parent_dir']
@@ -742,8 +737,8 @@ class CleanDataset():
             studies = [self.get_study_dir(group=group, patient_num=patient_num, study=study)]
         
         def _compare(std1:str, std2:str):
-            date1 = StudyDate.from_str(std1.split("_")[1], sep="-", year_first=True).to_str(sep="", year_first=True)
-            date2 = StudyDate.from_str(std2.split("_")[1], sep="-", year_first=True).to_str(sep="", year_first=True)
+            date1 = StudyDate.from_str(std1.split("_")[1], sep="-", year_first=True).as_str(sep="", year_first=True)
+            date2 = StudyDate.from_str(std2.split("_")[1], sep="-", year_first=True).as_str(sep="", year_first=True)
             if date1 < date2: return -1
             elif date1 > date2: return 1
             else: return 0
