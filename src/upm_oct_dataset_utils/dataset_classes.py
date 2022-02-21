@@ -35,12 +35,18 @@ class StudyDate():
     def __str__(self) -> str:
         return self.as_str()
     
-    def as_str(self, sep='-') -> str:
-        return str(self.day)+sep+str(self.month)+sep+str(self.year)
+    def as_str(self, sep='-', year_first:bool=False) -> str:
+        if not year_first:
+            return str(self.day)+sep+str(self.month)+sep+str(self.year)
+        else:
+            return str(self.year)+sep+str(self.month)+sep+str(self.day)
     
     @staticmethod
-    def from_str(string_date:str, sep='-') -> object:
-        day, month, year = string_date.split(sep)
+    def from_str(string_date:str, sep='-', year_first:bool=False) -> object:
+        if not year_first:
+            day, month, year = string_date.split(sep)
+        else:
+            year, month, day  = string_date.split(sep)
         try:
             day = int(day); month = int(month); year = int(year)
         except: 
@@ -58,16 +64,14 @@ class RawDataset():
             - control
                 (patients)
                 - patient-1
-                    - study_20-11-2021
-                        - IMG
-                            - PCZMI... .img (exported with Zeiss research licence)
-                            ...
+                    - PCZMI515190478 20160414
+                        PCZMI... .img (exported with Zeiss research licence)
+                        ...
                         - retinography
                             - O(S/D)_adqu-date_retinography.jpg
-                        - XML
-                            - CZMI... .xml
-                    - study_23-1-2022
+                    - PCZMI515190478 20170517
                         ...
+                    CZMI... .xml
                 - patient-2
                     ...
                 - ...
@@ -85,10 +89,10 @@ class RawDataset():
         RIS: {'dir_name': 'RIS'},
     }
     data_types = {
-        OCT: {'parent_dir': 'IMG'}, 
-        OCTA: {'parent_dir': 'IMG'},
+        OCT: {'parent_dir': ''}, 
+        OCTA: {'parent_dir': ''},
         RET: {'parent_dir': 'retinography'},
-        XML: {'parent_dir': 'XML'}
+        XML: {'parent_dir': ''}
     }
     file_suffixes = {
         OCT: 'cube_z.img',
@@ -149,7 +153,7 @@ class RawDataset():
     
     def split_file_name(self, file_name:str, data_type:str) -> dict:
         if data_type == OCT or data_type == OCTA:
-            headers = ['id', 'modality_info', 'adquisition_date', 'num', 'eye', 'sn', 'cube_type']
+            headers = ['id', 'modality_info', 'adquisition_date', 'hour', 'eye', 'sn', 'cube_type']
             info = file_name.split('_', maxsplit=6)
         elif data_type == RET:
             headers = ['eye', 'adquisition_date', 'modality_info']
@@ -175,19 +179,16 @@ class RawDataset():
             num2 = patient2
             if type(patient2) is str:
                 num2 = int(patient2.split("-")[1])
-            if num1 < num2:
-                return -1
-            elif num1 > num2:
-                return 1
-            else:
-                return 0
+            if num1 < num2: return -1
+            elif num1 > num2: return 1
+            else: return 0
 
         return sorted(patients, key=cmp_to_key(_compare))
     
     def get_studies(self, group:str, patient_num:int, study:Union[int,StudyDate,list[int],list[StudyDate]]=None) -> list:
         patient_path:Path = self.get_dir_path(group=group, patient_num=patient_num)
         if study is None:
-            studies = os.listdir(patient_path)
+            studies = list(filter(lambda f: os.path.isdir(patient_path/f), os.listdir(patient_path)))
         elif type(study) is list:
             studies = []
             for std in study: 
@@ -197,9 +198,20 @@ class RawDataset():
         else:
             studies = [self.get_study_dir(group=group, patient_num=patient_num, study=study)]
         
+        def _compare(std1:str, std2:str):
+            date1 = std1.split(" ")[1]
+            date2 = std2.split(" ")[1]
+            if date1 < date2: return -1
+            elif date1 > date2: return 1
+            else: return 0
+        
+        # Ordenamos por fecha
+        if len(studies) > 1:
+            studies = sorted(studies, key=cmp_to_key(_compare))
+            
         return studies
     
-    def get_study_dir(self, group:str, patient_num:int, study:Union[int, StudyDate]) -> None:
+    def get_study_dir(self, group:str, patient_num:int, study:Union[int, StudyDate]) -> str:
         studies = self.get_studies(group=group, patient_num=patient_num)
         if type(study) is int:
             try: 
@@ -207,10 +219,10 @@ class RawDataset():
             except IndexError:
                 raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have '{study}' number of studies")
         elif type(study) is StudyDate:
-            str_date = study.as_str(sep="-")
-            study_str = "study_" + str_date
-            if study_str in studies: 
-                return study_str
+            str_date = study.as_str(sep="", year_first=True)
+            for std in studies:
+                if str_date in std:
+                    return std
             else: 
                 raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have an study made in '{str_date}'")
         else:
@@ -317,9 +329,22 @@ class RawDataset():
                 for e, eye_val in self.eyes.items():
                     if eye_val in file_name: break
                 if eye is not None and e != eye: continue
+                # Take the last image taken for an specific zone and eye (the one with the highest date)
+                try:
+                    candidate = img_data[z][e]
+                except: pass
+                else:
+                    fname1 = Path(candidate).name
+                    splitted1 = self.split_file_name(fname1, modality)
+                    date1 = splitted1['adquisition_date']+"-"+splitted1['hour']
+                    splitted2 = self.split_file_name(file_name, modality)
+                    date2 = splitted2['adquisition_date']+"-"+splitted2['hour']
+                    if date1 > date2:
+                        continue
                 full_path = str(path/file_name)
                 img_data[z][e] = full_path
-                data_without_paths[z].append(e)
+                if e not in data_without_paths[z]:
+                    data_without_paths[z].append(e)
         
         dict_copy = copy.deepcopy(data_without_paths)
         for z, info in dict_copy.items():
@@ -329,7 +354,7 @@ class RawDataset():
         return img_data
     
     def _get_retinography_paths(self, group:str, patient_num:int, study:str, eye:str=None, _withoutpaths=False) -> Union[dict, list]:
-        data_type = 'retinography'
+        data_type = RET
         path = self.get_dir_path(group=group, patient_num=patient_num, data_type=data_type, study=study)
         img_data = {}; eyes = []
         if os.path.isdir(path):
@@ -346,23 +371,43 @@ class RawDataset():
         return img_data
         
     def _get_xml_paths(self, group:str, patient_num:int, study:str, _withoutpaths=False) -> Union[dict, list]:
-        data_type = 'XML'
-        path = self.get_dir_path(group=group, patient_num=patient_num, data_type=data_type, study=study)
-        data_path = {}; total_scans = []
+        data_type = XML
+        path = self.get_dir_path(group=group, patient_num=patient_num)
+        data_path = {}; total_scans = []; scans_dates = {}
         if os.path.isdir(path):
             for file_name in os.listdir(path):
                 if not file_name.startswith(self.file_prefixes[data_type]):
                     continue
                 full_path = str(path/file_name)
-                scans = self._get_xml_info(full_path)
-                total_scans += scans
-                data_path[full_path] = scans
+                scans, dates = self._get_xml_info(full_path, study)
+                # Can't have two xml scans of the same zone and eye in an study (the scan with highest date will be chosen)
+                fscans = copy.deepcopy(scans); fdates = copy.deepcopy(dates)
+                if bool(data_path):
+                    for sc in scans:
+                        for dpath, vals in data_path.items():
+                            if sc in vals:
+                                date1 = scans_dates[dpath][sc]
+                                date2 = dates[sc]
+                                if date1 < date2:
+                                    vals.remove(sc)
+                                    data_path[dpath] = vals
+                                else:
+                                    fscans.remove(sc)
+                                    fdates.pop(sc)
+                                    continue
+                for sc in fscans:
+                    if sc not in total_scans:
+                        total_scans.append(sc)
+                data_path[full_path] = fscans
+                scans_dates[full_path] = fdates
         
         if _withoutpaths: return total_scans
         return data_path
     
-    def _get_xml_info(self, file_path:str) -> list:
-        xml_info = []
+    def _get_xml_info(self, file_path:str, study:str) -> tuple[list, dict]:
+        std_date_raw = study.split(" ")[1]
+        std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
+        xml_info = []; scans_dates = {} 
         json_str = pdx.read_xml(file_path).to_json(indent=4)
         try:
             studies = json.loads(json_str)["ExportSchema"]["0"]["PATIENT"]["VISITS"]["STUDY"]
@@ -375,6 +420,7 @@ class RawDataset():
             for zone, zone_adq in self.zones.items():
                 for eye_convention  in self.eyes.values():
                     for study in studies:
+                        if study['VISIT_DATE'] != std_date: continue
                         series = study["SERIES"]
                         if series is None: continue
                         scans = series["SCAN"]
@@ -382,13 +428,16 @@ class RawDataset():
                             scans = [scans]
                         for scan in scans:
                             adq_name = zone_adq['adquisitions_name'][modality]
+                            raw_scan_date = scan['DATE_TIME']; splitted_date = raw_scan_date.split("T")
+                            scan_date = splitted_date[0]+"-"+splitted_date[1].replace(":", "-")
                             cond1 = scan['PROTOCOL'] == adq_name and scan["SITE"] == eye_convention
                             cond2 = "ANALYSIS" in scan
                             if cond1 and cond2:
-                                xml_info.append(modality+"_"+zone+"_"+eye_convention)
+                                scan_name = modality+"_"+zone+"_"+eye_convention
+                                xml_info.append(scan_name)
+                                scans_dates[scan_name] = scan_date
                                 break     
-
-        return xml_info
+        return xml_info, scans_dates
     
     def show_info(self, group:str=None, patient_num:Union[int, list[int]]=None, study:Union[int,StudyDate,list[int],list[StudyDate]]=None,
                     only_missing_info:bool=False, data_type:list[str]=None, only_summary:bool=False):
@@ -618,7 +667,9 @@ class CleanDataset():
             raise DatasetAccessError(f"'{patient}' doesn't exist in '{group}' group")
         # Studies
         if study is None: return path
-        path = path/study
+        std_date_raw = study.split(" ")[1]
+        std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
+        path = path/f"study_{std_date}"
         if not os.path.isdir(path):
             raise DatasetAccessError(f"'{study}' doesn't exist in '{patient}' of '{group}' group")
         # Data type
@@ -643,7 +694,10 @@ class CleanDataset():
         try:
             self.get_dir_path(group=group, patient_num=patient_num, study=study)
         except DatasetAccessError:
-            study_path = self.get_dir_path(group=group, patient_num=patient_num)/study
+            std_date_raw = study.split(" ")[1]
+            std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
+            clean_std_name = "study_"+std_date
+            study_path = self.get_dir_path(group=group, patient_num=patient_num)/clean_std_name
             os.mkdir(study_path)
             for dtype in self.data_types:
                 dir_name = self.data_types[dtype]['parent_dir']
@@ -668,12 +722,9 @@ class CleanDataset():
             num2 = patient2
             if type(patient2) is str:
                 num2 = int(patient2.split("-")[1])
-            if num1 < num2:
-                return -1
-            elif num1 > num2:
-                return 1
-            else:
-                return 0
+            if num1 < num2: return -1
+            elif num1 > num2: return 1
+            else: return 0
 
         return sorted(patients, key=cmp_to_key(_compare))
     
@@ -690,9 +741,20 @@ class CleanDataset():
         else:
             studies = [self.get_study_dir(group=group, patient_num=patient_num, study=study)]
         
+        def _compare(std1:str, std2:str):
+            date1 = StudyDate.from_str(std1.split("_")[1], sep="-", year_first=True).to_str(sep="", year_first=True)
+            date2 = StudyDate.from_str(std2.split("_")[1], sep="-", year_first=True).to_str(sep="", year_first=True)
+            if date1 < date2: return -1
+            elif date1 > date2: return 1
+            else: return 0
+        
+        # Ordenamos por fecha
+        if len(studies) > 1:
+            studies = sorted(studies, key=cmp_to_key(_compare))
+        
         return studies
     
-    def get_study_dir(self, group:str, patient_num:int, study:Union[int, StudyDate]) -> None:
+    def get_study_dir(self, group:str, patient_num:int, study:Union[int, StudyDate]) -> str:
         studies = self.get_studies(group=group, patient_num=patient_num)
         if type(study) is int:
             try: 

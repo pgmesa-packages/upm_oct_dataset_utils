@@ -1,6 +1,6 @@
 # UPM package for managing the OCT/OCTA study dataset
 
-Package that offers some functionalities to easily work, create, manage and organize a dataset for an study that works with raw (.img) OCT/OCTA volumes and XML scans analysis, exported from the Cirrus Zeiss 5000 with the Zeiss research license. This code in specific for the UPM multiple sclerosis, NMO and RIS study (2021-2022), but it can serve as a base to fit a great range of other necessities related with the topic. The idea is to have two different directories to store data: a raw dataset with the exported data (.img) from the device and a clean dataset where the processed data from the raw dataset will be stored. To train an IA with the clean dataset, is as simple as clean_ds.get-data_paths(-query-) to get all data paths you need and then create for example a tensorflow dataset to load the data durig the training.
+Package that offers some functionalities to easily work, create, manage and organize a dataset for an study that works with raw (.img) OCT/OCTA volumes and XML scans analysis, exported from the Cirrus Zeiss 5000 with the Zeiss research license. This code in specific for the UPM multiple sclerosis, NMO and RIS study (2021-2022), but it can serve as a base to fit a great range of other necessities related with the topic. The idea is to have two different directories to store data: a raw dataset with the exported data (.img) from the device and a clean dataset where the processed data from the raw dataset will be stored. To train an IA with the clean dataset, is as simple as clean_ds.get_data_paths(-query-) to get all data paths you need and then create for example a tensorflow dataset to load the data durig the training.
 
 ### Installation
 ```
@@ -17,16 +17,15 @@ Default arquitecure that the tree directory must follow in the raw dataset:
     - control
         (patients)
         - patient-1
-            - study_20-11-2021
-                - IMG
-                    - PCZMI... .img (exported with Zeiss research licence)
-                    ...
+            (exported with Zeiss research licence)
+            - PCZMI515190478 20160414
+                PCZMI515190478_Macular Cube 512x128_4-14-2016_9-5-35_OD_sn99960_cube_z.img
+                ...
                 - retinography
                     - O(S/D)_adqu-date_retinography.jpg
-                - XML
-                    - CZMI... .xml
-            - study_23-1-2022
+            - PCZMI515190478 20170517
                 ...
+            CZMI... .xml
         - patient-2
             ...
         - ...
@@ -66,7 +65,7 @@ def animate_volume(volume, figure=None, title:list[str]=None, subplot_size:tuple
 To process and read 1 or more XML analysis from the Cirrus Zeiss 5000
 ```
 # Remove trash oct info and returns a clean XML with the useful data (removes "TRACKINGDETAILS" field and other minor stuff)
-processed_xml:dict = process_xmlscans(xml_path, xml_scans)
+processed_xml:dict = process_xmlscans(xml_path, raw_study_dir, xml_scan_names_to_process)
 ```
 
 ### Usage Example
@@ -74,7 +73,7 @@ Create a query to get all optic-disk OCTA images of left eye of the control grou
 ```
 raw_dataset = RawDataset(raw_dataset_path)
 raw_data_paths:dict = raw_dataset.get_data_paths(
-    group='control', patient_num=[1,2,3,4,5,6,7], data_type='OCTA', zone="optic-disk", eye="left"
+    group='control', patient_num=[1,2,3,4,5,6,7], data_type='OCTA', zone="optic-disc", eye="left"
 )
 ```
 See the state of the datasets, the adquisitions that are missing from each patient study or are pending to be exported or the studies and adquisitions that have not been processed yet (raw_dataset.show_info(-query-) or clean_dataset.show_info(-query-))
@@ -102,7 +101,7 @@ See the state of the datasets, the adquisitions that are missing from each patie
 - 'patient-6' (studies=1) has all adquisitions
 - 'patient-7' (studies=1) has missing info:
     {
-        "study_13-10-2021": {
+        "PCZMI515190478 20160414": {
             "OCTA": "macula left missing",
             "XML": {
                 "OCTA_macula_OS": "missing"
