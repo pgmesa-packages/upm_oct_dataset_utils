@@ -2,13 +2,13 @@
 
 Package that offers some functionalities to easily work, create, manage and organize a dataset for an study that works with raw (.img) OCT/OCTA volumes and XML scans analysis, exported from the Cirrus Zeiss 5000 with the Zeiss research license. This code in specific for the UPM multiple sclerosis, NMO and RIS study (2021-2022), but it can serve as a base to fit a great range of other necessities related with the topic. The idea is to have two different directories to store data: a raw dataset with the exported data (.img) from the device and a clean dataset where the processed data from the raw dataset will be stored. To train an IA with the clean dataset, is as simple as clean_ds.get_data_paths(-query-) to get all data paths you need and then create for example a tensorflow dataset to load the data durig the training.
 
-### Installation
+## Installation
 ```
 pip install upm_oct_dataset_utils
 ```
-### Modules 
+## Modules 
 
-#### dataset_classes
+### dataset_classes
 Classes that represent a layer of abstraction to easily query the file system tree of the dataset where the images are stored (hard disk, computer ...)
 Default arquitecure that the tree directory must follow in the raw dataset:
 ```
@@ -37,7 +37,7 @@ Default arquitecure that the tree directory must follow in the raw dataset:
         ...
 ```
 
-#### oct_processing_lib
+### oct_processing_lib
 To process, read and easily work with the raw (.img) images from Cirrus Zeiss 5000. It also offers some functions to manage and reconstruct OCTA volumes.
 The file system tree of the dataset should be as follows 
 ```
@@ -48,7 +48,7 @@ data = process_cube(
 ).rotate_face(axe='x').resize_slices((350,350)).project().as_nparray()
 ```
 
-#### visualization_lib
+### visualization_lib
 To visualize OCTA reconstructions and OCT/OCTA volumes with the possibility to animate the volume as a short movie.
 The functions admits arrays of images to show and arrays of different volumes to animate at the same time (when multi option is set to True)
 ```
@@ -61,14 +61,14 @@ def animate_volume(volume, figure=None, title:list[str]=None, subplot_size:tuple
     ...
 ```
 
-#### xml_processing_lib
+### xml_processing_lib
 To process and read 1 or more XML analysis from the Cirrus Zeiss 5000
 ```
 # Remove trash oct info and returns a clean XML with the useful data (removes "TRACKINGDETAILS" field and other minor stuff)
 processed_xml:dict = process_xmlscans(xml_path, raw_study_dir, xml_scan_names_to_process)
 ```
 
-### Usage Example
+## Usage Example
 Create a query to get all optic-disk OCTA images of left eye of the control group patients from 1 to 7 
 ```
 raw_dataset = RawDataset(raw_dataset_path)
