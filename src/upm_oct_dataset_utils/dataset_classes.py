@@ -32,14 +32,14 @@ class StudyDate():
             raise DateError(f"Date introduced format is invalid (dd-mm-yy) -> '{err}'")
         self.day = day; self.month = month; self.year = year
     
-    def __str__(self) -> str:
-        return self.as_str()
-    
     def as_str(self, sep='-', year_first:bool=False) -> str:
+        month = str(self.month); day = str(self.day)
+        if self.month < 10: month = "0"+str(self.month)
+        if self.day < 10: day = "0"+str(self.day)
         if not year_first:
-            return str(self.day)+sep+str(self.month)+sep+str(self.year)
+            return day+sep+month+sep+str(self.year)
         else:
-            return str(self.year)+sep+str(self.month)+sep+str(self.day)
+            return str(self.year)+sep+month+sep+day
     
     @staticmethod
     def from_str(string_date:str, sep='-', year_first:bool=False) -> object:
@@ -64,23 +64,25 @@ class RawDataset():
             - control
                 (patients)
                 - patient-1
-                    - PCZMI515190478 20160414
-                        PCZMI... .img (exported with Zeiss research licence)
-                        ...
+                    - (exported with Zeiss research licence)
+                    - PCZMI515100478 20160414
+                        - PCZMI515100478_Macular Cube 512x128_14-04-2016_11-14-24_OD_sn100323_cube_raw.img
+                        - PCZMI515100478_Macular Cube 512x128_14-04-2016_11-14-24_OD_sn100323_cube_z.img 
+                        - ...
                         - retinography
                             - O(S/D)_adqu-date_retinography.jpg
-                    - PCZMI515190478 20170517
-                        ...
-                    CZMI... .xml
+                    - PCZMI515100478 20170517
+                        - ...
+                    - CZMI... .xml
                 - patient-2
-                    ...
+                    - ...
                 - ...
             - MS
-                ...
+                - ...
             - NMO
-                ...
+                - ...
             - RIS
-                ...
+                - ...
     """
     groups = {
         CONTROL: {'dir_name': 'control'}, 
@@ -189,6 +191,11 @@ class RawDataset():
         patient_path:Path = self.get_dir_path(group=group, patient_num=patient_num)
         if study is None:
             studies = list(filter(lambda f: os.path.isdir(patient_path/f), os.listdir(patient_path)))
+            check_stds = copy.deepcopy(studies)
+            for std in check_stds:
+                # Check if it's a valid directory
+                try: self.get_studydir_date(std)
+                except: studies.remove(std)
         elif type(study) is list:
             studies = []
             for std in study: 
@@ -214,10 +221,12 @@ class RawDataset():
     def get_study_dir(self, group:str, patient_num:int, study:Union[int, StudyDate]) -> str:
         studies = self.get_studies(group=group, patient_num=patient_num)
         if type(study) is int:
-            try: 
-                return studies[study-1]
+            try:
+                index = study-1
+                if study < 0: index = study
+                return studies[index]
             except IndexError:
-                raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have '{study}' number of studies")
+                raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have '{abs(study)}' number of studies")
         elif type(study) is StudyDate:
             str_date = study.as_str(sep="", year_first=True)
             for std in studies:
@@ -227,6 +236,12 @@ class RawDataset():
                 raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have an study made in '{str_date}'")
         else:
             raise DatasetAccessError(f"Study query '{study}' is incorrect -> type must be 'int' or 'StudyDate', not '{type(study)}'")
+    
+    @staticmethod
+    def get_studydir_date(raw_dir_name:str) -> StudyDate:
+        std_date_raw = raw_dir_name.split(" ")[1]
+        std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
+        return StudyDate.from_str(std_date, sep='-', year_first=True)
     
     def get_data_paths(self, group:Union[str, list[str]]=None, patient_num:Union[int, list[int]]=None, study:Union[int,StudyDate,list[int],list[StudyDate]]=None,
                        data_type:Union[str, list[str]]=None, zone:str=None, eye:str=None, _withoutpaths:bool=False) -> Union[dict, Path]:
@@ -405,8 +420,7 @@ class RawDataset():
         return data_path
     
     def _get_xml_info(self, file_path:str, study:str) -> tuple[list, dict]:
-        std_date_raw = study.split(" ")[1]
-        std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
+        std_date = self.get_studydir_date(study).as_str(year_first=True)
         xml_info = []; scans_dates = {} 
         json_str = pdx.read_xml(file_path).to_json(indent=4)
         try:
@@ -420,7 +434,8 @@ class RawDataset():
             for zone, zone_adq in self.zones.items():
                 for eye_convention  in self.eyes.values():
                     for study in studies:
-                        if study['VISIT_DATE'] != std_date: continue
+                        if study['VISIT_DATE'] != std_date:
+                            continue
                         series = study["SERIES"]
                         if series is None: continue
                         scans = series["SCAN"]
@@ -466,7 +481,7 @@ class RawDataset():
                 msg += F", PATIENT {patient_num}"
             print(msg)
             # Variables to count missing info
-            m_oct = 0; m_octa = 0; m_ret = 0; m_xml = 0; num_patients = len(group_info); num_studies = 0
+            m_oct = 0; m_octa = 0; m_ret = 0; m_xml = 0; num_patients = len(group_info); num_studies = 0; completed_stds = 0
             if num_patients == 0:
                 print("     -> This group is empty")
             else:
@@ -535,6 +550,7 @@ class RawDataset():
                                                     m_xml += 1; has_missing_info = True
                         if bool(missing_info):
                             studies_m_info[std] = missing_info
+                        else: completed_stds += 1
                     if not only_summary:
                         if not has_missing_info:
                             if not only_missing_info: 
@@ -580,6 +596,9 @@ class RawDataset():
                 total = total_octs + total_octas + total_retinos + total_xml
                 total_missing = m_oct+m_octa+m_ret+m_xml; percentage = round((total-total_missing)*100/total, 2)
                 print(f' -> Global data = {total-total_missing}/{total} ({percentage}%) -> ({total_missing} missing)')
+                # Completed studies
+                stds_not_completed = num_studies-completed_stds; std_perc = round((num_studies-stds_not_completed)*100/num_studies, 2)
+                print(f' -> Completed Studies = {completed_stds}/{num_studies} ({std_perc}%) -> ({stds_not_completed} with missing info)')
             print('----------------------------------------------------')
             
 class CleanDataset():
@@ -594,21 +613,21 @@ class CleanDataset():
                         - OCT
                             - patient-1_adqu-type_adqu-date_O(S/D).tiff
                         - OCTA
-                            ...
+                            - ...
                         - retinography
                             - patient-1_retinography_adqu-date_O(S/D).jpg
                         - patient-1_analysis.json
                     - study_23-1-2022
-                        ...
+                        - ...
                 - patient-2
-                    ...
+                    - ...
                 - ...
             - MS
-                ...
+                - ...
             - NMO
-                ...
+                - ...
             - RIS
-                ...
+                - ...
     """
     groups = {
         CONTROL: {'dir_name': 'control'}, 
@@ -753,9 +772,11 @@ class CleanDataset():
         studies = self.get_studies(group=group, patient_num=patient_num)
         if type(study) is int:
             try: 
-                return studies[study-1]
+                index = study-1
+                if study < 0: index = study
+                return studies[index]
             except IndexError:
-                raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have '{study}' number of studies")
+                raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have '{abs(study)}' number of studies")
         elif type(study) is StudyDate:
             str_date = study.as_str(sep="-")
             study_str = "study_" + str_date
@@ -920,7 +941,7 @@ class CleanDataset():
                 msg += F", PATIENT {patient_num}"
             print(msg)
             # Variables to count missing info
-            m_oct = 0; m_octa = 0; m_ret = 0; m_xml = 0; num_patients = len(group_info); num_studies = 0
+            m_oct = 0; m_octa = 0; m_ret = 0; m_xml = 0; num_patients = len(group_info); num_studies = 0; completed_stds = 0
             if num_patients == 0:
                 print("     -> This group is empty")
             else:
@@ -989,6 +1010,7 @@ class CleanDataset():
                                                     m_xml += 1; has_missing_info = True
                         if bool(missing_info):
                             studies_m_info[std] = missing_info
+                        else: completed_stds += 1
                     if not only_summary:
                         if not has_missing_info:
                             if not only_missing_info: 
@@ -1034,4 +1056,7 @@ class CleanDataset():
                 total = total_octs + total_octas + total_retinos + total_xml
                 total_missing = m_oct+m_octa+m_ret+m_xml; percentage = round((total-total_missing)*100/total, 2)
                 print(f' -> Global data = {total-total_missing}/{total} ({percentage}%) -> ({total_missing} missing)')
+                # Completed studies
+                stds_not_completed = num_studies-completed_stds; std_perc = round((num_studies-stds_not_completed)*100/num_studies, 2)
+                print(f' -> Completed Studies = {completed_stds}/{num_studies} ({std_perc}%) -> ({stds_not_completed} with missing info)')
             print('----------------------------------------------------')
