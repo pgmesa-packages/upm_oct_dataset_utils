@@ -486,8 +486,9 @@ class RawDataset():
                 print("     -> This group is empty")
             else:
                 for patient, study_info in group_info.items():
-                    studies_m_info = {}; has_missing_info = False
+                    studies_m_info = {}; has_missing_info = False; pempty = False
                     studies = self.get_studies(group, patient.split("-")[1], study=study)
+                    if len(studies) == 0: pempty = True
                     for std, p_info in study_info.items():
                         if study is not None and std not in studies: continue
                         missing_info = {}; num_studies += 1
@@ -553,7 +554,10 @@ class RawDataset():
                         else: completed_stds += 1
                     if not only_summary:
                         if not has_missing_info:
-                            if not only_missing_info: 
+                            if pempty:
+                                msg = f" - '{patient}' (studies={len(studies)}) is empty"
+                                print(msg)
+                            elif not only_missing_info: 
                                 msg = f" - '{patient}' (studies={len(study_info)}) has all adquisitions" 
                                 msg += "" if data_type is None else f" of type {data_type}"
                                 print(msg)
@@ -571,33 +575,41 @@ class RawDataset():
                 # OCT
                 total_octs = 0
                 if OCT in summary_dtypes:
-                    total_octs = 4*num_studies
-                    oct_perc =  round((total_octs-m_oct)*100/total_octs, 2)
+                    total_octs = 4*num_studies; oct_perc = 0
+                    if total_octs != 0:
+                        oct_perc =  round((total_octs-m_oct)*100/total_octs, 2)
                     print(f'     -> OCT Cubes => {total_octs-m_oct}/{total_octs} ({oct_perc}%) -> ({m_oct} missing)')
                 # OCTA
                 total_octas = 0;
                 if OCTA in summary_dtypes:
-                    total_octas = 4*num_studies
-                    octa_perc =  round((total_octas-m_octa)*100/total_octas, 2)
+                    total_octas = 4*num_studies; octa_perc = 0
+                    if total_octas != 0:
+                        octa_perc =  round((total_octas-m_octa)*100/total_octas, 2)
                     print(f'     -> OCTA Cubes => {total_octas-m_octa}/{total_octas} ({octa_perc}%) -> ({m_octa} missing)')
                 # Retinographies
                 total_retinos = 0;
                 if RET in summary_dtypes:
-                    total_retinos = 2*num_studies
-                    ret_perc =  round((total_retinos-m_ret)*100/total_retinos, 2)
+                    total_retinos = 2*num_studies; ret_perc = 0
+                    if total_retinos != 0:
+                        ret_perc =  round((total_retinos-m_ret)*100/total_retinos, 2)
                     print(f'     -> Retina Images => {total_retinos-m_ret}/{total_retinos} ({ret_perc}%) -> ({m_ret} missing)')
                 # XML scans analysis
                 total_xml = 0;
                 if XML in summary_dtypes:
-                    total_xml = 8*num_studies
-                    xml_perc =  round((total_xml-m_xml)*100/total_xml, 2)
+                    total_xml = 8*num_studies; xml_perc = 0
+                    if total_xml != 0:
+                        xml_perc =  round((total_xml-m_xml)*100/total_xml, 2)
                     print(f'     -> XML scans => {total_xml-m_xml}/{total_xml} ({xml_perc}%) -> ({m_xml} missing)')
                 # Global 
                 total = total_octs + total_octas + total_retinos + total_xml
-                total_missing = m_oct+m_octa+m_ret+m_xml; percentage = round((total-total_missing)*100/total, 2)
+                total_missing = m_oct+m_octa+m_ret+m_xml; percentage = 0
+                if total != 0:
+                    percentage = round((total-total_missing)*100/total, 2)
                 print(f' -> Global data = {total-total_missing}/{total} ({percentage}%) -> ({total_missing} missing)')
                 # Completed studies
-                stds_not_completed = num_studies-completed_stds; std_perc = round((num_studies-stds_not_completed)*100/num_studies, 2)
+                stds_not_completed = num_studies-completed_stds; std_perc = 0
+                if num_studies != 0:
+                    std_perc = round((num_studies-stds_not_completed)*100/num_studies, 2)
                 print(f' -> Completed Studies = {completed_stds}/{num_studies} ({std_perc}%) -> ({stds_not_completed} with missing info)')
             print('----------------------------------------------------')
             
@@ -946,8 +958,9 @@ class CleanDataset():
                 print("     -> This group is empty")
             else:
                 for patient, study_info in group_info.items():
-                    studies_m_info = {}; has_missing_info = False
+                    studies_m_info = {}; has_missing_info = False; pempty = False
                     studies = self.get_studies(group, patient.split("-")[1], study=study)
+                    if len(studies) == 0: pempty = True
                     for std, p_info in study_info.items():
                         if study is not None and std not in studies: continue
                         missing_info = {}; num_studies += 1
@@ -1013,7 +1026,10 @@ class CleanDataset():
                         else: completed_stds += 1
                     if not only_summary:
                         if not has_missing_info:
-                            if not only_missing_info: 
+                            if pempty:
+                                msg = f" - '{patient}' (studies={len(studies)}) is empty"
+                                print(msg)
+                            elif not only_missing_info: 
                                 msg = f" - '{patient}' (studies={len(study_info)}) has all adquisitions" 
                                 msg += "" if data_type is None else f" of type {data_type}"
                                 print(msg)
@@ -1025,38 +1041,46 @@ class CleanDataset():
                 if data_type is None:
                     summary_dtypes = list(self.data_types.keys())
                 else:
-                    summary_dtypes = data_type
+                    summary_dtypes = data_type    
                 # Summary
-                print(f" + SUMMARY:")
+                print(f" + SUMMARY (queried-studies={num_studies}):")
                 # OCT
                 total_octs = 0
                 if OCT in summary_dtypes:
-                    total_octs = 4*num_studies
-                    oct_perc =  round((total_octs-m_oct)*100/total_octs, 2)
+                    total_octs = 4*num_studies; oct_perc = 0
+                    if total_octs != 0:
+                        oct_perc =  round((total_octs-m_oct)*100/total_octs, 2)
                     print(f'     -> OCT Cubes => {total_octs-m_oct}/{total_octs} ({oct_perc}%) -> ({m_oct} missing)')
                 # OCTA
                 total_octas = 0;
                 if OCTA in summary_dtypes:
-                    total_octas = 4*num_studies
-                    octa_perc =  round((total_octas-m_octa)*100/total_octas, 2)
+                    total_octas = 4*num_studies; octa_perc = 0
+                    if total_octas != 0:
+                        octa_perc =  round((total_octas-m_octa)*100/total_octas, 2)
                     print(f'     -> OCTA Cubes => {total_octas-m_octa}/{total_octas} ({octa_perc}%) -> ({m_octa} missing)')
                 # Retinographies
                 total_retinos = 0;
                 if RET in summary_dtypes:
-                    total_retinos = 2*num_studies
-                    ret_perc =  round((total_retinos-m_ret)*100/total_retinos, 2)
+                    total_retinos = 2*num_studies; ret_perc = 0
+                    if total_retinos != 0:
+                        ret_perc =  round((total_retinos-m_ret)*100/total_retinos, 2)
                     print(f'     -> Retina Images => {total_retinos-m_ret}/{total_retinos} ({ret_perc}%) -> ({m_ret} missing)')
                 # XML scans analysis
                 total_xml = 0;
                 if XML in summary_dtypes:
-                    total_xml = 8*num_studies
-                    xml_perc =  round((total_xml-m_xml)*100/total_xml, 2)
+                    total_xml = 8*num_studies; xml_perc = 0
+                    if total_xml != 0:
+                        xml_perc =  round((total_xml-m_xml)*100/total_xml, 2)
                     print(f'     -> JSON scans => {total_xml-m_xml}/{total_xml} ({xml_perc}%) -> ({m_xml} missing)')
                 # Global 
                 total = total_octs + total_octas + total_retinos + total_xml
-                total_missing = m_oct+m_octa+m_ret+m_xml; percentage = round((total-total_missing)*100/total, 2)
+                total_missing = m_oct+m_octa+m_ret+m_xml; percentage = 0
+                if total != 0:
+                    percentage = round((total-total_missing)*100/total, 2)
                 print(f' -> Global data = {total-total_missing}/{total} ({percentage}%) -> ({total_missing} missing)')
                 # Completed studies
-                stds_not_completed = num_studies-completed_stds; std_perc = round((num_studies-stds_not_completed)*100/num_studies, 2)
+                stds_not_completed = num_studies-completed_stds; std_perc = 0
+                if num_studies != 0:
+                    std_perc = round((num_studies-stds_not_completed)*100/num_studies, 2)
                 print(f' -> Completed Studies = {completed_stds}/{num_studies} ({std_perc}%) -> ({stds_not_completed} with missing info)')
             print('----------------------------------------------------')
