@@ -76,7 +76,7 @@ def animate_volume(volume, figure=None, title:list[str]=None, subplot_size:tuple
 To process and read 1 or more XML analysis from the Cirrus Zeiss 5000
 ```
 # Remove trash oct info and returns a clean XML with the useful data (removes "TRACKINGDETAILS" field and other minor stuff)
-processed_xml:dict = process_xmlscans(xml_path, raw_study_dir, xml_scan_names_to_process)
+processed_xml:dict = process_xmlscans(xml_path, study_date, xml_scan_names_to_process)
 ```
 
 ## Usage Example

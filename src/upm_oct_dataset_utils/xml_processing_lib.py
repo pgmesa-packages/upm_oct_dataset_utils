@@ -1,14 +1,13 @@
 
 import json
-from .dataset_classes import RawDataset
+from .dataset_classes import RawDataset, StudyDate
 import pandas_read_xml as pdx
 
 class XMLError(Exception):
     pass
 
-def process_xmlscans(xml_path, raw_std_dir:str, scans_to_process:list) -> dict:
-    std_date_raw = raw_std_dir.split(" ")[1]
-    std_date = std_date_raw[:4]+"-"+std_date_raw[4:6]+"-"+std_date_raw[6:]
+def process_xmlscans(xml_path, study_date:StudyDate, scans_to_process:list) -> dict:
+    std_date = study_date.as_str(sep='-', year_first=True)
     xml_df = pdx.read_xml(xml_path)
     json_str = xml_df.to_json(indent=4)
     xml_dict = json.loads(json_str)
