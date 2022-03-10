@@ -12,7 +12,7 @@ with open("requirements.txt", "r", encoding='utf-16') as fh:
 
 setuptools.setup(
     name='upm_oct_dataset_utils',  
-    version='0.5.0',
+    version='0.6.0',
     author="Pablo García Mesa",
     author_email="pgmesa.sm@gmail.com",
     description="Dataset utility package for UPM OCT/OCTA study (MS, NMO and RIS)",
@@ -22,9 +22,9 @@ setuptools.setup(
     package_dir={'': 'src'},
     packages=setuptools.find_packages(where='src'),
     install_requires=requirements,
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: OS Independent",
     ],
