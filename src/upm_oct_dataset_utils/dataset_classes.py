@@ -160,6 +160,10 @@ class RawDataset():
         elif data_type == RET:
             headers = ['eye', 'adquisition_date', 'modality_info']
             info = file_name.split('_')
+        elif data_type == XML:
+            headers = ["prefix", "export_date1", "export_date2", "id", "birth_year_date", "sex"]
+            file_name = file_name.removesuffix(".xml")
+            info = file_name.split('^')
             
         return dict(zip(headers, info))
     
