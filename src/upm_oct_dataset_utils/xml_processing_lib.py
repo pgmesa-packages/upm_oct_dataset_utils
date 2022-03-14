@@ -36,7 +36,8 @@ def process_xmlscans(xml_path, study_date:StudyDate, scans_to_process:list) -> d
                     if date1 > scan_date:
                         add_flag = False
                 if sc['PROTOCOL'] == protocol and sc["SITE"] == eye and add_flag:
-                    sc.pop("TRACKINGDETAILS")
+                    if "TRACKINGDETAILS" in sc:
+                        sc.pop("TRACKINGDETAILS")
                     processed_scans[scan] = sc
                     pdates[scan] = scan_date
     # xml_dict.update(processed_scans)
