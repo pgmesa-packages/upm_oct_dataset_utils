@@ -169,7 +169,7 @@ class RawDataset():
     
     def get_patients(self, group:str, as_int:bool=False) -> list:
         group_path:Path = self.get_dir_path(group=group)
-        file_names = os.listdir(group_path)
+        file_names = [f for f in os.listdir(group_path) if os.path.isdir(group_path/f)] 
         patients = []
         for name in file_names:
             if "patient-" in name:
@@ -736,7 +736,7 @@ class CleanDataset():
         
     def get_patients(self, group:str, as_int:bool=False) -> list:
         group_path:Path = self.get_dir_path(group=group)
-        file_names = os.listdir(group_path)
+        file_names = [f for f in os.listdir(group_path) if os.path.isdir(group_path/f)]
         patients = []
         for name in file_names:
             if "patient-" in name:
@@ -761,7 +761,7 @@ class CleanDataset():
     def get_studies(self, group:str, patient_num:int, study:Union[int,StudyDate,list[int],list[StudyDate]]=None) -> list:
         patient_path:Path = self.get_dir_path(group=group, patient_num=patient_num)
         if study is None:
-            studies = os.listdir(patient_path)
+            studies = list(filter(lambda f: os.path.isdir(patient_path/f), os.listdir(patient_path)))
         elif type(study) is list:
             studies = []
             for std in study: 
@@ -918,7 +918,7 @@ class CleanDataset():
         return img_data
         
     def _get_analysis_path(self, group:str, patient_num:int, study:str) -> dict:
-        data_type = XML; name = f'patient-{patient_num}_'+self.file_suffixes[data_type]
+        data_type = XML; name = f'patient-{patient_num}_{study.split("_")[1]}_'+self.file_suffixes[data_type]
         analysis_path = self.get_dir_path(group=group, patient_num=patient_num, study=study, data_type=data_type)/name
         analysis = {}
         if os.path.exists(analysis_path):
