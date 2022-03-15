@@ -794,7 +794,7 @@ class CleanDataset():
             except IndexError:
                 raise DatasetAccessError(f"'patient_{patient_num}' from group '{group}' doesn't have '{abs(study)}' number of studies")
         elif type(study) is StudyDate:
-            str_date = study.as_str(sep="-")
+            str_date = study.as_str(sep="-", year_first=True)
             study_str = "study_" + str_date
             if study_str in studies: 
                 return study_str
