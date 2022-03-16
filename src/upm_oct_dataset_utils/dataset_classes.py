@@ -480,8 +480,8 @@ class RawDataset():
         print(f"+ RAW DATASET INFO (Path -> '{self.dataset_path}')")
         raw_dataset_info = """
         - Adquisitions per patient study:
-            -> 4 OCT (macular_OD, macular_OS, optic-nerve_OD, optic-nerve_OS)
-            -> 4 OCTA (macular_OD, macular_OS, optic-nerve_OD, optic-nerve_OS)
+            -> 4 OCT (macular_OD, macular_OS, optic-disc_OD, optic-disc_OS)
+            -> 4 OCTA (macular_OD, macular_OS, optic-disc_OD, optic-disc_OS)
             -> 2 retinographies (OD, OS)
             -> 8 scans XML analysis report
         """
@@ -960,8 +960,8 @@ class CleanDataset():
         print(f"+ CLEAN DATASET INFO (Path -> '{self.dataset_path}')")
         clean_dataset_info = """
         - Adquisitions per patient:
-            -> 4 OCT (macular_OD, macular_OS, optic-nerve_OD, optic-nerve_OS)
-            -> 4 OCTA (macular_OD, macular_OS, optic-nerve_OD, optic-nerve_OS)
+            -> 4 OCT (macular_OD, macular_OS, optic-disc_OD, optic-disc_OS)
+            -> 4 OCTA (macular_OD, macular_OS, optic-disc_OD, optic-disc_OS)
             -> 2 retinographies (OD, OS)
             -> 8 scans in JSON analysis report
         """
