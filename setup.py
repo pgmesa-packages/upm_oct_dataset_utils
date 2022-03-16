@@ -12,7 +12,7 @@ with open("requirements.txt", "r", encoding='utf-16') as fh:
 
 setuptools.setup(
     name='upm_oct_dataset_utils',  
-    version='0.8.2',
+    version='0.8.5',
     author="Pablo García Mesa",
     author_email="pgmesa.sm@gmail.com",
     description="Dataset utility package for UPM OCT/OCTA study (MS, NMO and RIS)",

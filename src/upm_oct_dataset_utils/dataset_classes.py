@@ -15,9 +15,9 @@ CONTROL = 'control'; MS = 'MS'; NMO = 'NMO'; RIS = 'RIS'
 # Tipos de datos
 OCT = 'OCT'; OCTA = 'OCTA'; RET = 'retinography'; XML = 'XML'
 # Zonas
-MACULA = 'macula'; OPTIC_DISC = 'optic-nerve'
+MACULA = 'macula'; OPTIC_DISC = 'optic-disc'
 # Ojos
-OD = 'right'; OS = 'left'
+OD = 'OD'; OS = 'OS'
 # --------------------
 
 class DateError(Exception):
@@ -52,6 +52,9 @@ class StudyDate():
         except: 
             raise DateError(f"Couldn't convert date numbers into 'int' -> day='{day}' | month='{month}' | year='{year}'")
         return StudyDate(day, month, year)
+    
+    def __str__(self) -> str:
+        return self.as_str(year_first=True)
 
 class DatasetAccessError(Exception):
     pass
@@ -319,10 +322,18 @@ class RawDataset():
             try:   
                 if data_type == OCT or data_type == OCTA:
                     if data_type is not None and zone is not None and eye is not None:  
-                        data = data[group][f'patient-{patient_num}'][study_dir][data_type][zone][eye]
+                        data = data[group][f'patient-{patient_num}'][study_dir][data_type]
+                        if zone in data and eye in data[zone]:
+                            return data[zone][eye]
+                        else:
+                            return None 
                 elif data_type == RET:
-                    if data_type is not None and zone is not None and eye is not None:  
-                        data = data[group][f'patient-{patient_num}'][study_dir][data_type][eye]
+                    if data_type is not None and eye is not None:  
+                        data = data[group][f'patient-{patient_num}'][study_dir][data_type]
+                        if eye not in data:
+                            return None
+                        else:
+                            return data[eye]
                 elif data_type == XML:
                     data = data[group][f'patient-{patient_num}'][study_dir][data_type]
                     if not bool(data): raise KeyError
@@ -869,15 +880,23 @@ class CleanDataset():
             try:   
                 if data_type == OCT or data_type == OCTA:
                     if data_type is not None and zone is not None and eye is not None:  
-                        data = data[group][f'patient-{patient_num}'][study_dir][data_type][zone][eye]
+                        data = data[group][f'patient-{patient_num}'][study_dir][data_type]
+                        if zone in data and eye in data[zone]:
+                            return data[zone][eye]
+                        else:
+                            return None 
                 elif data_type == RET:
-                    if data_type is not None and zone is not None and eye is not None:  
-                        data = data[group][f'patient-{patient_num}'][study_dir][data_type][eye]
+                    if data_type is not None and eye is not None:  
+                        data = data[group][f'patient-{patient_num}'][study_dir][data_type]
+                        if eye not in data:
+                            return None
+                        else:
+                            return data[eye]
                 elif data_type == XML:
                     data = data[group][f'patient-{patient_num}'][study_dir][data_type]
                     if not bool(data): raise KeyError
             except KeyError:
-                raise DatasetAccessError("The path/file specified doesn't exist")
+                raise DatasetAccessError(f"The path/file specified doesn't exist '{group}' '{patient_num}' '{study}'")
         
         return data
     
