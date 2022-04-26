@@ -75,12 +75,17 @@ def animate_volume(volume, figure=None, title:list[str]=None, subplot_size:tuple
                 frame_group.append(vol[int(i/ratio)])
             else:
                 frame_group.append(None)
-        frames.append(frame_group)
-        
-    def _update_frames(frames:tuple):
+                
+        frames.append((len(frames)+1, frame_group))
+    
+    def _update_frames(frames:tuple, *fargs, **kwarg):
+        frame_num, frames = frames
+        total_frames = fargs[0]
+        figure.suptitle(f'Frame {frame_num}/{total_frames}', fontsize=15)
         for i, frame in enumerate(frames):
             if frame is not None:
                 canvas[i].set_data(frame)
+        return canvas
             
     t_animation = t_milisec # Milisegundos
     num_slices = max_length
@@ -89,9 +94,11 @@ def animate_volume(volume, figure=None, title:list[str]=None, subplot_size:tuple
     animation = anim.FuncAnimation(
             figure, 
             _update_frames, 
+            fargs=[len(frames)],
             frames=frames, 
             interval=t_sleep,
-            repeat=repeat
+            repeat=repeat,
+            # blit=True -> Esta opcion no permite actualizar el titulo, aunque mejora la velocidad de carga de los frames
         )
     plt.show()
     
