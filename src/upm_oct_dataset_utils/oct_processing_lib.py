@@ -149,6 +149,7 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1), smooth_lines:i
                 # Si el analisis no ha detectado los picos que necesitamos
                 # no hacemos el analisis, devolvemos la proyeccion tal cual
                 print("Peaks", len(peaks), peaks, "| Valleis", len(valleis), valleis)
+                continue
                 # plt.subplot(1,2,2)
                 # plt.scatter(x_num, stds)
                 # plt.scatter(peaks, np.array(stds)[peaks])
@@ -170,9 +171,14 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1), smooth_lines:i
                     R = math.sqrt((x_q_center-x_center)**2 + (y_q_center-y_center)**2)
                     print(R_to_middle, R_max, x_q_center, y_q_center, R) 
                     #q1 = np.array(q1)*1/()
-                    w1 = (R_max/3)/((R_max-R)+0.0001); w2 = (R_max/3)/(R+0.0001)
+                    # w2 = np.log((R_max/3)/(R+0.0001)); w2_max = np.log((R_max/3)/(0+0.0001))
+                    # w1 = w2_max - w2
+                    w1 = 1; w2 = 0
+                    if R < R_max*0.4: 
+                        w2 = 1; w1 = R/R_max
+                    # if w1 < 0: w1 = 0
                     print(w1, w2)
-                    q_recons = np.around((w1*q1+w2*q2)/(w1+w2))
+                    q_recons = np.around(((w1*q1)+(w2*q2))/(w1+w2))
                     assert np.max(q_recons) <= 255 and np.min(q_recons) >= 0
                 else:
                      q_recons = q1
@@ -198,84 +204,6 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1), smooth_lines:i
             print(i, j)
             last_q = OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end]    
             OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end] = np.around((q_recons+last_q)/2)
-            
-            
-            #print(avgs.shape)
-            # plt.subplot(1,2,1)
-            # plt.scatter(x_num, avgs)
-            # #signal.find_peaks_cwt()
-            
-            #print(avgs)
-            # avgs_grad2 = np.gradient(np.gradient(avgs))
-            # yf = fft(avgs)
-            # xf = fftfreq(len(avgs))
-            # plt.plot(xf, np.abs(yf))
-            # plt.show()
-
-            # yf = fft(avgs)
-            # xf = fftfreq(len(avgs))
-            # plt.plot(xf, np.abs(yf))
-            # plt.show()
-
-
-            # sos = signal.butter(3, 0.05, 'lowpass', output='sos')
-            # avgs = signal.sosfilt(sos, avgs_grad2)
-            # offset = 70
-            # indexes, mins = get_mins(avgs[70:])
-            # loc1 = np.argmin(mins) # 1º minimo "mas pronunciado"
-            # mins[loc1] = np.argmax(mins)
-            # loc2 = np.argmin(mins) # 2º minimo "mas pronunciado"
-            # # Nos quedamos el minimo que encintramos antes
-            # min_index = loc2
-            # if loc1 < loc2:
-            #     min_index = loc1
-            # print("Loc1", loc1, "| Loc2", loc2)
-            # print("Selected:", min_index)
-            # layer_limit = indexes[min_index]+offset # Cogemos el anterior al pico mas alto
-            # print(layer_limit, j, i)
-            
-            #layers = q[:layer_limit]
-            
-            # for k, (avg, std) in enumerate(zip(avgs,stds)):
-            #     if k>layer_limit: break
-            #     # if avg <= -0.02:
-            #     #     in_fist_min = True
-            #     # if in_fist_min and k+1 < len(avgs) and avg > avgs[k+1] and avg > avgs[k-1]:
-            #     #     first_min = True
-            #     # if break_when_min and avg > avgs[k-1]:
-
-            #     #     # print("break at", k, avg, max_avg, (avg-max_avg)/max_avg,i, j)
-            #     #     # plt.subplot(1,2,1)
-            #     #     # plt.scatter(x_num[:k], avgs[:k])
-            #     #     # plt.subplot(1,2,2)
-            #     #     # plt.scatter(x_num[:k], stds[:k])
-            #     #     # plt.show()
-            #     #     break_when_min = False
-            #     #     break
-            #     # if avg < -0.07 and first_min:
-            #     #     break_when_min = True
-            #     #if avg > max(avgs)*signal_threshold: #or std > np.mean(last_stds):
-            #     layers.append(q[k])
-            # else:
-            #     print(i, j, "CUIDADO")
-            
-
-    # if smooth_lines > 0:
-    #     # --- Hacemos que los bordes entre sectores sean transiciones mas suaves
-    #     # Smooth entre columnas
-    #     for i in range(kernel_size[0]-1):
-    #         column_index = x_step*(i+1)
-    #         band = OCTA_reconstructed[:, column_index-(1*smooth_lines):column_index+(1*smooth_lines)]
-    #         avg_column = np.average(band, axis=1)
-    #         stacked_column = np.stack((avg_column,)*smooth_lines*2, axis=1)
-    #         OCTA_reconstructed[:, column_index-(1*smooth_lines):column_index+(1*smooth_lines)] = stacked_column
-    #     # Smooth entre filas
-    #     for j in range(kernel_size[1]-1):
-    #         row_index = y_step*(i+1)
-    #         band = OCTA_reconstructed[:, row_index-(1*smooth_lines):row_index+(1*smooth_lines)]
-    #         avg_row = np.average(band, axis=1)
-    #         stacked_row = np.stack((avg_row,)*smooth_lines*2, axis=1)
-    #         OCTA_reconstructed[:, row_index-(1*smooth_lines):row_index+(1*smooth_lines)] = stacked_row
 
     if claheLimit is not None:
         clahe = cv2.createCLAHE(clipLimit=claheLimit)
