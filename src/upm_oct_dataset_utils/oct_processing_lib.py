@@ -198,6 +198,12 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
 
     return OCTA_reconstructed
 
+def reconstruct_ONH_OCTA():
+    ...
+    
+def reconstruct_Macula_OCTA():
+    ...
+
 def norm_volume(volume, bit_depth:int=None, max_value=1, np_type=None):
     """Normalize volume between 0 and max_value"""
     if bit_depth is None:
