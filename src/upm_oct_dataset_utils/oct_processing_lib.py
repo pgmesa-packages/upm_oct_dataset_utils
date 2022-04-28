@@ -1,8 +1,9 @@
 
 import math
+
 import cv2
+import tqdm
 from scipy import signal
-from scipy.fft import fft, fftfreq
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -58,7 +59,7 @@ class Cube():
             for x in range(x_elements):
                 transposed = np.transpose(self.value)
                 pixel_max = np.max(transposed[x][y])
-                max_slice_vals[y][x] = int(pixel_max)
+                max_slice_vals[y][x] = pixel_max
         p = np.array(max_slice_vals)
         c = Cube(p)
 
@@ -76,23 +77,34 @@ class Cube():
             hflipped.append(np.fliplr(slice_))
         return Cube(np.array(hflipped))
 
-def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1), smooth_lines:int=1, claheLimit:float=None):
-    """ Imagen con valores entre 0-255"""
+def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
+                        bit_depth=16, central_depth:float=None, show_progress:bool=True):
+    """
+    TODO:
+    - Adaptar el kernel y strides si no coincide justo con proporciones de la imagen
+    - Realizar ultimo filtrado que disminuya transiciones entre proyecciones de distintas regiones
+    """
     assert kernel_size[0] >= strides[0] and kernel_size[1] >= strides[1]
-    cube_array = cube.value
+    cube_array = norm_volume(cube.value, bit_depth=bit_depth, max_value=1)
+    print(np.min(cube_array),np.max(cube_array))
+    assert np.min(cube_array) >= 0 and np.max(cube_array) <= 1
     _, y_elements, x_elements = cube_array.shape
 
-    OCTA_reconstructed = cube.project().as_nparray()
+    OCTA_reconstructed = Cube(cube_array).project().as_nparray()
 
     # Dividimos en sectores, filtramos las capas de la imagen consideradas como ruido y
     # de las capas restantes nos quedamos un porcentaje de profundidad
     x_step = strides[0]; x_overlap = kernel_size[0] - x_step
     y_step = strides[1]; y_overlap = kernel_size[1] - y_step
+    # Distancia en Polares al centro de la imagen
+    x_center = round(x_elements/2); y_center = round(y_elements/2)
+    R_to_middle = math.sqrt(x_center**2 + y_center**2)
+    R_max = R_to_middle - math.sqrt((kernel_size[0]/2)**2 + (kernel_size[1]/2)**2)
+    
     if x_overlap == 0:
         num_steps_x = x_elements//x_step
         x_left = x_elements%x_step
     else:
-        print(int((x_overlap*x_elements)/(x_elements-kernel_size[0])))
         num_steps_x = (x_elements - kernel_size[0])//x_step
         x_left = (x_elements - kernel_size[0])%x_step
     if y_overlap == 0:
@@ -101,115 +113,100 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1), smooth_lines:i
     else:
         num_steps_y = (y_elements - kernel_size[1])//y_step
         y_left = (y_elements - kernel_size[1])%y_step
-    # print(x_elements, y_elements)
-    # print(x_step, y_step)
+        
+    if show_progress:
+        pbar = tqdm .tqdm(total=(num_steps_x+1)*(num_steps_y+1), desc="Reconstructing OCTA", unit=" conv")
     for j in range(num_steps_x+1):
         for i in range(num_steps_y+1):
-            print("STARTTT:", j, i)
             y_q_init = y_step*j; y_q_end = y_q_init+kernel_size[1]
             x_q_init = x_step*i; x_q_end = x_q_init+kernel_size[0]
-            # if i+1 <= x_left:
-            #     x_q_init += i+1
-            #     x_q_end += i+2
-            # else:
-            #     x_q_init += x_left
-            #     x_q_end += x_left
-            # if j+1 <= y_left:
-            #     y_q_init += j+1
-            #     y_q_end += j+2
-            # else:
-            #     y_q_init += y_left
-            #     y_q_end += y_left
-            print("X", x_q_init, x_q_end)
-            print("Y", y_q_init, y_q_end)
             q = cube_array[:, y_q_init:y_q_end, x_q_init:x_q_end]
             avgs = []; stds = []; x_num = []
             for index, l in enumerate(q):
-                #print(l)
                 avg =  np.average(l); avgs.append(avg)
                 std = np.std(l); stds.append(std)
                 x_num.append(index)
             
-            # window = signal.general_gaussian(51, p=0.5, sig=20)
-            # filtered = signal.fftconvolve(window, stds, mode='full')
-            # filtered = (np.average(stds) / np.average(filtered)) * filtered
-            # print(len(filtered), len(stds))
-            # filtered = np.roll(filtered, -25)
-            # print(len(filtered), len(stds), len(x_num))
-            # stds = filtered
-            # stds = np.array(stds)
-            # stds[stds < 10] = 0
-            # avgs_grad2 = np.gradient(np.gradient(avgs))
+            prominence = 0.017 # Altura del pico hasta el primer minimo por la izq o derecha
+            peaks, _ = signal.find_peaks(stds, prominence=prominence, distance=25, width=5)
+            valleys, _ = signal.find_peaks(np.array(stds)*-1, prominence=prominence, distance=25, width=5)
             
-            peaks, _ = signal.find_peaks(stds, prominence=3, distance=25, width=5)
-            valleis, _ = signal.find_peaks(np.array(stds)*-1, prominence=3, distance=25, width=5)
-
+            # plt.subplot(1,2,1)
+            # plt.scatter(x_num, avgs)
+            # plt.subplot(1,2,2)
+            # plt.scatter(x_num, stds)
+            # plt.scatter(peaks, np.array(stds)[peaks])
+            # plt.scatter(valleys, np.array(stds)[valleys])
+            # plt.show()
             
-            if len(peaks) > 3 or len(peaks) < 2 or len(peaks) != len(valleis)+1:
-                # Si el analisis no ha detectado los picos que necesitamos
-                # no hacemos el analisis, devolvemos la proyeccion tal cual
-                print("Peaks", len(peaks), peaks, "| Valleis", len(valleis), valleis)
-                continue
-                # plt.subplot(1,2,2)
-                # plt.scatter(x_num, stds)
-                # plt.scatter(peaks, np.array(stds)[peaks])
-                # plt.scatter(valleis, np.array(stds)[valleis])
-                # plt.show()
-                # Filtramos los slice que son puro ruido
-                layers = [q[index] for index, val in enumerate(stds) if val > 10]
-                q_recons = Cube(np.array(layers)).project().as_nparray()
+            coherence = False
+            if (len(peaks) == 3 or len(peaks) == 2) and len(peaks) == len(valleys)+1:
+                for i, m in enumerate(valleys):
+                    if not (m > peaks[i] and m < peaks[i+1]):
+                        break
+                else:
+                    coherence = True
+            
+            if not coherence:
+                # Si el analisis no ha detectado los picos que necesitamos, no hacemos el analisis
+                # TODO: Ver como procesar estos cubos de los que no se ha podido extraer bien la señal
+                pass
+                #print(peaks, valleys, q.shape)
             else:
-                first_layers_group_1 = q[:valleis[0]]; stds2 = stds[:valleis[0]]
+                first_layers_group_1 = q[:valleys[0]]
+                # Filtramos ruido 
+                # first_layers_group_1 = [l for i,l in enumerate(first_layers_group_1) if stds[i] > 0.2*np.max(stds)]
+                # first_layers_group_1 = np.array(first_layers_group_1)
                 q1 = Cube(first_layers_group_1).project().as_nparray()
-                if smooth_lines == 2:
+                
+                if central_depth is not None:
                     first_layers_group_2 = q[:peaks[1]]
                     q2 = Cube(first_layers_group_2).project().as_nparray()
-                    x_center = round(x_elements/2); y_center = round(y_elements/2)
-                    R_to_middle = math.sqrt(x_center**2 + y_center**2)
-                    R_max = R_to_middle - math.sqrt((kernel_size[0]/2)**2 + (kernel_size[1]/2)**2)
                     x_q_center = round((x_q_end-x_q_init)/2) + x_q_init; y_q_center = round((y_q_end-y_q_init)/2) + y_q_init
                     R = math.sqrt((x_q_center-x_center)**2 + (y_q_center-y_center)**2)
-                    print(R_to_middle, R_max, x_q_center, y_q_center, R) 
-                    #q1 = np.array(q1)*1/()
-                    # w2 = np.log((R_max/3)/(R+0.0001)); w2_max = np.log((R_max/3)/(0+0.0001))
-                    # w1 = w2_max - w2
-                    w1 = 1; w2 = 0
-                    if R < R_max*0.4: 
-                        w2 = 1; w1 = R/R_max
-                    # if w1 < 0: w1 = 0
-                    print(w1, w2)
-                    q_recons = np.around(((w1*q1)+(w2*q2))/(w1+w2))
-                    assert np.max(q_recons) <= 255 and np.min(q_recons) >= 0
-                else:
-                     q_recons = q1
-                # if x_q_init == 150 and y_q_init == 150:
-                #     plt.subplot(1,2,2)
-                #     plt.scatter(x_num, stds)
-                #     plt.scatter(peaks, np.array(stds)[peaks])
-                #     plt.scatter(valleis, np.array(stds)[valleis])
-                #     plt.show()
-                #     plt.imshow(q_recons)
-                #     plt.show()
-                if len(peaks) == 3 and len(valleis) == 2:
-                    # Si entramos aqui estamos en la excavacion del nervio optico
-                    second_layers_group = q[valleis[1]:peaks[2]]; stds2 += stds[valleis[1]:]
-                    if smooth_lines == 2:
-                        second_layers_group = q[peaks[1]:peaks[2]]
-                    q2_recons = Cube(second_layers_group).project().as_nparray()
-                    #layers = [q[index] for index, val in enumerate(stds) if val > 10]
-                    #layers = np.concatenate((first_layers_group,second_layers_group), axis=0)
-                    #q_recons = Cube(layers).project().as_nparray()
-                    q_recons = np.around((q_recons+q2_recons)/2)  
-                # layers = [layers[index] for index, val in enumerate(stds2) if val > 10]
-            print(i, j)
-            last_q = OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end]    
-            OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end] = np.around((q_recons+last_q)/2)
 
-    if claheLimit is not None:
-        clahe = cv2.createCLAHE(clipLimit=claheLimit)
-        OCTA_reconstructed = clahe.apply(np.uint16(OCTA_reconstructed))
+                    w1 = 1; w2 = 0
+                    if R < R_max*central_depth: 
+                        w2 = 1; w1 = R/R_max
+                    
+                    q_recons = ((w1*q1)+(w2*q2))/(w1+w2)
+                else:
+                    q_recons = q1
+                
+                if len(peaks) == 3 and len(valleys) == 2:
+                    # Si entramos aqui probablemente estamos en la excavacion del nervio optico
+                    second_layers_group = q[valleys[1]:peaks[2]]
+                    q2_recons = Cube(second_layers_group).project().as_nparray()
+                    q_recons = Cube(np.array([q_recons, q2_recons])).project().as_nparray()
+                    
+                last_q = OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end]    
+                OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end] = (q_recons+last_q)/2
+            if show_progress: pbar.update(1)
+
+    max_val = math.pow(2, bit_depth) - 1
+    OCTA_reconstructed = norm_volume(OCTA_reconstructed, bit_depth=None, max_value=max_val, np_type=np.uint16)
 
     return OCTA_reconstructed
+
+def norm_volume(volume, bit_depth:int=None, max_value=1, np_type=None):
+    """Normalize volume between 0 and max_value"""
+    if bit_depth is None:
+        maxim = 1
+    else:
+        maxim = math.pow(2, bit_depth) - 1
+    norm_v = ((volume / maxim)*max_value)
+    if np_type is not None:
+        norm_v = norm_v.astype(np_type)
+    
+    return norm_v
+
+def get_mins(array) -> tuple:
+    mins = []; locations = []
+    for i, elem in enumerate(array):
+        if i+1 < len(array) and elem < array[i-1] and elem < array[i+1]:
+            mins.append(elem); locations.append(i)
+
+    return locations, mins
 
 def convolve2D(image, kernel, padding=0, strides=1):
     # Cross Correlation
@@ -254,46 +251,6 @@ def convolve2D(image, kernel, padding=0, strides=1):
 
     return output
 
-def get_mins(array) -> tuple:
-    mins = []; locations = []
-    for i, elem in enumerate(array):
-        if i+1 < len(array) and elem < array[i-1] and elem < array[i+1]:
-            mins.append(elem); locations.append(i)
-
-    return locations, mins
-
-def get_maxims(array) -> tuple:
-    maxims = []; locations = []
-    for i, elem in enumerate(array):
-        if i+1 < len(array) and elem > array[i-1] and elem > array[i+1]:
-            maxims.append(elem); locations.append(i)
-
-    return locations, maxims
-
-def reconstruct_ONH_OCTA(cube:Cube, kernel_size=(16,16), strides=(1,1), 
-                            smooth_lines:int=1, claheLimit:float=10, avg_with_projection:bool=True):
-    onh_recons = reconstruct_OCTA(
-        cube, kernel_size=kernel_size, strides=strides,
-        smooth_lines=smooth_lines, claheLimit=claheLimit
-    )
-
-    return onh_recons
-
-
-def reconstruct_Angiography_OCTA(cube:Cube, kernel_size=(16,16), max_thickness_perc:float=0.1,strides=(1,1), 
-                            signal_threshold:float=0.20, smooth_lines:int=1, claheLimit:float=10):
-    ang_recons = reconstruct_OCTA(
-        cube, kernel_size=kernel_size, strides=strides,
-        smooth_lines=smooth_lines, claheLimit=claheLimit
-    )
-
-    return ang_recons
-
-def norm_volume(volume, bit_depth:int):
-    maxim = math.pow(2, bit_depth) - 1
-    norm_v = ((volume / maxim) * 255.9).astype(np.uint8)
-    return norm_v
-
 class RawProcessingError(Exception):
     pass
 
@@ -302,6 +259,7 @@ def process_oct(raw_path:str, width_pixels:int, height_pixels:int, num_images:in
     """ Returns Numpy array.
 
         -> reads cube with bit_depth=16, mode='unsigned'
+        -> Volume values will be between 0 and 65535
     """
     if num_images < 1:
         raise RawProcessingError("'num_images' can't be less than 1")
@@ -331,7 +289,6 @@ def process_oct(raw_path:str, width_pixels:int, height_pixels:int, num_images:in
             cube_data.append(slice_)
 
     cube_data = np.array(cube_data)
-    cube_data = norm_volume(cube_data, bit_depth=bit_depth)
 
     if reverse: cube_data = np.flip(cube_data, axis=1)
 
