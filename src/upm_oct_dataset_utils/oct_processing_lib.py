@@ -82,7 +82,6 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
     """
     TODO:
     - Adaptar el kernel y strides si no coincide justo con proporciones de la imagen
-    - Realizar ultimo filtrado que disminuya transiciones entre proyecciones de distintas regiones
     """
     assert kernel_size[0] >= strides[0] and kernel_size[1] >= strides[1]
     cube_array = norm_volume(cube.value, bit_depth=bit_depth, max_value=1)
@@ -128,59 +127,14 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
                 for index, l in enumerate(q):
                     avg =  np.average(l); avgs.append(avg)
                     std = np.std(l); stds.append(std)
-                    x_num.append(index)
-
-
-                def butter_lowpass(cutoff, fs=None, order=5):
-                    nyq = 0.5 * fs
-                    normal_cutoff = cutoff / nyq
-                    b, a = signal.butter(order, normal_cutoff, btype='low', analog=False)
-                    return b, a
-
-                def butter_lowpass_filter(data, cutoff, fs=None, order=5):
-                    b, a = butter_lowpass(cutoff, fs=fs, order=order)
-                    y = signal.lfilter(b, a, data)
-                    return y
-
-
-                # Setting standard filter requirements.
-                order = 6
-                fs = 30.0 # 400      
-                cutoff = 3.667  
-
-                # b, a = butter_lowpass(cutoff,fs=fs, order=6)
-
-                # # Plotting the frequency response.
-                # w, h = signal.freqz(b, a, worN=8000)
-                # plt.subplot(2, 1, 1)
-                # plt.plot(0.5*fs*w/np.pi, np.abs(h), 'b')
-                # plt.plot(cutoff, 0.5*np.sqrt(2), 'ko')
-                # plt.axvline(cutoff, color='k')
-                # plt.xlim(0, 0.5*fs)
-                # plt.title("Lowpass Filter Frequency Response")
-                # plt.xlabel('Frequency [Hz]')
-                # plt.grid()
-                
-
-                # Filtering and plotting
-                y = butter_lowpass_filter(stds, cutoff, fs, order)
-
-                # plt.subplot(2, 1, 2)
-                # plt.plot(x_num, stds, 'b-', label='data')
-                # plt.plot(x_num, y, 'g-', linewidth=2, label='filtered data')
-                # plt.xlabel('Time [sec]')
-                # plt.grid()
-                # plt.legend()
-
-                # plt.subplots_adjust(hspace=0.35)
-                # plt.show()
-                
-                stds = y
-                
+                    x_num.append(index)      
+                     
+                # Filtramos ruido y variaciones bruscas iniciales
+                stds =  butter_lowpass_filter(stds, cutoff=3.667, fs=30, order=6)
+ 
                 prominence = 0.01 # Altura del pico hasta el primer minimo por la izq o derecha
                 peaks, _ = signal.find_peaks(stds, prominence=prominence, distance=25, width=2) #prominence=prominence, distance=25, width=3, height=0.07)
                 valleys, _ = signal.find_peaks(np.array(stds)*-1, prominence=prominence, distance=25, width=2) # prominence=0.006, distance=25, width=0)
-                # signal.find_peaks_cwt
                 
                 coherence = False
                 if (len(peaks) == 3 or len(peaks) == 2) and len(peaks) == len(valleys)+1:
@@ -192,15 +146,7 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
                 
                 if not coherence:
                     # Si el analisis no ha detectado los picos que necesitamos, no hacemos el analisis
-                    # TODO: Ver como procesar estos cubos de los que no se ha podido extraer bien la señal
-                    print(peaks, valleys, q.shape, x_q_init, x_q_end, y_q_init, y_q_end)
-                    # plt.subplot(1,2,1)
-                    # plt.scatter(x_num, avgs)
-                    # plt.subplot(1,2,2)
-                    # plt.scatter(x_num, stds)
-                    # plt.scatter(peaks, np.array(stds)[peaks])
-                    # plt.scatter(valleys, np.array(stds)[valleys])
-                    # plt.show()
+                    # Cambiamos el kernel y el tamaño del cuadrante y lo volvemos a intentar (corregimos)
                     inc_perc = 0.2
                     x_q_init = round(x_q_init-(inc_perc*kernel_size[0])); x_q_end = round(x_q_end+(inc_perc*kernel_size[0]))
                     y_q_init = round(y_q_init-(inc_perc*kernel_size[1])); y_q_end = round(y_q_end+(inc_perc*kernel_size[1]))
@@ -211,13 +157,8 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
                     q_recons, x_q_init, x_q_end, y_q_init, y_q_end = _reconstruct_quadrant(
                         cube_array, x_q_init, x_q_end, y_q_init, y_q_end, timeout=timeout-1
                     )
-                    if q_recons is not None:
-                        print("Fixed: ", peaks, valleys, q.shape, x_q_init, x_q_end, y_q_init, y_q_end)
                 else:
                     first_layers_group_1 = q[:valleys[0]]
-                    # Filtramos ruido 
-                    # first_layers_group_1 = [l for i,l in enumerate(first_layers_group_1) if stds[i] > 0.2*np.max(stds)]
-                    # first_layers_group_1 = np.array(first_layers_group_1)
                     q1 = Cube(first_layers_group_1).project().as_nparray()
                     
                     if central_depth is not None:
@@ -248,6 +189,8 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
             if q_recons is not None:
                 last_q = OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end]    
                 OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end] = (q_recons+last_q)/2
+            else:
+                print(f"WARNING: quadrant x={x_q_init}:{x_q_end} y={y_q_init}:{y_q_end} could not be processed neither auto-fixe")
             if show_progress: pbar.update(1)
 
     max_val = math.pow(2, bit_depth) - 1
@@ -266,6 +209,45 @@ def norm_volume(volume, bit_depth:int=None, max_value=1, np_type=None):
         norm_v = norm_v.astype(np_type)
     
     return norm_v
+
+def butter_lowpass(cutoff, fs=None, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = signal.butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+def butter_lowpass_filter(data, cutoff, fs=None, order=5):
+    b, a = butter_lowpass(cutoff, fs=fs, order=order)
+    y = signal.lfilter(b, a, data)
+    return y
+
+def show_lowfilter_response(x, y, order=6, fs=30.0, cutoff=3.667):
+    # Setting standard filter requirements.
+    b, a = butter_lowpass(cutoff,fs=fs, order=6)
+
+    # Plotting the frequency response.
+    w, h = signal.freqz(b, a, worN=8000)
+    plt.subplot(2, 1, 1)
+    plt.plot(0.5*fs*w/np.pi, np.abs(h), 'b')
+    plt.plot(cutoff, 0.5*np.sqrt(2), 'ko')
+    plt.axvline(cutoff, color='k')
+    plt.xlim(0, 0.5*fs)
+    plt.title("Lowpass Filter Frequency Response")
+    plt.xlabel('Frequency [Hz]')
+    plt.grid()
+    
+    #Filtering and plotting
+    y_filtered = butter_lowpass_filter(y, cutoff, fs, order)
+
+    plt.subplot(2, 1, 2)
+    plt.plot(x, y, 'b-', label='data')
+    plt.plot(x, y_filtered, 'g-', linewidth=2, label='filtered data')
+    plt.xlabel('Time [sec]')
+    plt.grid()
+    plt.legend()
+
+    plt.subplots_adjust(hspace=0.35)
+    plt.show()
 
 def get_mins(array) -> tuple:
     mins = []; locations = []
