@@ -1,4 +1,5 @@
 
+from copy import deepcopy
 import math
 
 import cv2
@@ -12,34 +13,29 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 class Cube():
     def __init__(self, np_array) -> None:
-        self.value = np_array
+        np_arr_cp = deepcopy(np_array)
+        if type(np_arr_cp) is list:
+            np_arr_cp = np.array(np_arr_cp)
+        self.value = np_arr_cp
 
     def as_nparray(self):
         return self.value
 
-    def rotate_face(self, axis:str):
+    def rotate_face(self, axis:int=1):
         """ axes = 'x, 'y' and 'z' | cube shape assumed = (z, y, x)
             -> Rotates the face of the cube 90 degrees over the axes selected
         """
-        z_elements, y_elements, x_elements = self.value.shape
-
         rotated_cube = []
-        if axis == 'x':
-            # Cube shape to achieve = (y, z, x)
-            expected_shape = (y_elements, z_elements, x_elements)
-            for z in range(z_elements-1, -1, -1):
-                for y in range(y_elements):
-                    if z == z_elements-1: rotated_cube.append([[0]*x_elements]*z_elements)
-                    rotated_cube[y][z_elements-1-z] = self.value[z][y_elements-1-y]
-            rotated_cube = np.array(rotated_cube)
-            assert rotated_cube.shape == expected_shape
-            c = Cube(np.array(rotated_cube))
-            c = c.vflip_slices()
-            c = c.hflip_slices()
-        if axis == 'y':
-            ...
-        if axis == 'z':
-            ...
+        
+        for i in range(self.value.shape[axis]):
+            if axis == 0:
+                rotated_cube.append(self.value[i, :, :])
+            elif axis == 1:
+                rotated_cube.append(self.value[:, i, :])
+            elif axis == 2:
+                rotated_cube.append(self.value[:, :, i])
+                
+        c = Cube(rotated_cube)
 
         return c
 
@@ -77,6 +73,7 @@ class Cube():
             hflipped.append(np.fliplr(slice_))
         return Cube(np.array(hflipped))
 
+
 def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
                         bit_depth=16, central_depth:float=None, show_progress:bool=True):
     """
@@ -85,7 +82,6 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
     """
     assert kernel_size[0] >= strides[0] and kernel_size[1] >= strides[1]
     cube_array = norm_volume(cube.value, bit_depth=bit_depth, max_value=1)
-    print(np.min(cube_array),np.max(cube_array))
     assert np.min(cube_array) >= 0 and np.max(cube_array) <= 1
     _, y_elements, x_elements = cube_array.shape
 
@@ -122,6 +118,9 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
             
             def _reconstruct_quadrant(cube_array, x_q_init, x_q_end, y_q_init, y_q_end, timeout=5):
                 if timeout == 0: return None, x_q_init, x_q_end, y_q_init, y_q_end
+                x_q_size = x_q_end-x_q_init; y_q_size = y_q_end-y_q_init
+                x_q_half = int((x_q_size)/2); y_q_half = int((y_q_size)/2)
+                
                 q = cube_array[:, y_q_init:y_q_end, x_q_init:x_q_end]
                 avgs = []; stds = []; x_num = []
                 for index, l in enumerate(q):
@@ -182,10 +181,11 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
                         q_recons = Cube(np.array([q_recons, q2_recons])).project().as_nparray()
                     
                 return q_recons, x_q_init, x_q_end, y_q_init, y_q_end
-                
-            q_recons, x_q_init, x_q_end, y_q_init, y_q_end = _reconstruct_quadrant(
+            
+            qs_recons = _reconstruct_quadrant(
                 cube_array, x_q_init, x_q_end, y_q_init, y_q_end, timeout=10
-            ) 
+            )
+            q_recons, x_q_init, x_q_end, y_q_init, y_q_end = qs_recons
             if q_recons is not None:
                 last_q = OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end]    
                 OCTA_reconstructed[y_q_init:y_q_end, x_q_init:x_q_end] = (q_recons+last_q)/2
@@ -197,12 +197,6 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
     OCTA_reconstructed = norm_volume(OCTA_reconstructed, bit_depth=None, max_value=max_val, np_type=np.uint16)
 
     return OCTA_reconstructed
-
-def reconstruct_ONH_OCTA():
-    ...
-    
-def reconstruct_Macula_OCTA():
-    ...
 
 def norm_volume(volume, bit_depth:int=None, max_value=1, np_type=None):
     """Normalize volume between 0 and max_value"""
@@ -309,9 +303,11 @@ def convolve2D(image, kernel, padding=0, strides=1):
 class RawProcessingError(Exception):
     pass
 
-def process_oct(raw_path:str, width_pixels:int, height_pixels:int, num_images:int=1,
+def process_oct(raw_path:str, width_pixels:int, height_pixels:int, num_images:int=1, horizontal_flip:bool=True,
                     vertical_flip:bool=True, resize:tuple[int, int]=None, reverse:bool=True) -> Cube:
-    """ Returns Numpy array.
+    """ Returns Cube Object.
+        --> horizontal, vertical and reverse options are True by default due to cirrus volumes are
+        saved backwards
 
         -> reads cube with bit_depth=16, mode='unsigned'
         -> Volume values will be between 0 and 65535
@@ -346,5 +342,52 @@ def process_oct(raw_path:str, width_pixels:int, height_pixels:int, num_images:in
     cube_data = np.array(cube_data)
 
     if reverse: cube_data = np.flip(cube_data, axis=1)
+    
+    cube = Cube(cube_data)
+    if horizontal_flip: cube = cube.hflip_slices()
 
-    return Cube(cube_data)
+    return cube
+
+
+
+# Reconstruct OCTA Code for better reconstructing not good quadrant signals
+# if not not_phase_1 and not test:
+#     print("Phase 1", x_q_init, x_q_end, y_q_init, y_q_end, timeout)
+#     xfactors = [0,1,1,1,0,-1,-1,-1]; yfactors = [1,1,0,-1,-1,-1,0,1]
+#     reconstructed_qs = np.array([[False, False], [False, False]]); quadrants = []
+#     for i in range(8):
+#         xf = xfactors[i]; yf = yfactors[i]
+#         x_start = (x_q_init+(x_q_half*xf)); x_end = (x_q_end+((x_q_size-x_q_half)*xf))
+#         y_start = (y_q_init+(y_q_half*yf)); y_end = (y_q_end+((y_q_size-y_q_half)*yf))
+#         if x_start < 0: x_start = 0
+#         if y_start < 0: y_start = 0
+#         if x_end > x_elements: x_end = x_elements
+#         if y_end > y_elements: y_end = y_elements
+#         sub_q = cube_array[:, y_start:y_end, x_start:x_end]
+#         print("Start",x_start, x_end, y_start, y_end,timeout)
+#         q_tuple = _reconstruct_quadrant(
+#             sub_q, x_start, x_end, y_start, y_end, timeout=timeout-1, not_phase_1=True
+#         )
+#         q_recons = q_tuple[0]
+#         if q_recons is not None:
+#             quadrants.append(q_tuple)
+#             corner = xf*yf
+#             if corner == 0:
+#                 if xf == 0:
+#                     if yf == 1: reconstructed_qs[0] = [True, True]
+#                     elif yf == -1: reconstructed_qs[1] = [True, True]
+#                 elif yf == 0:
+#                     if xf == 1: reconstructed_qs[:, 1] = True
+#                     elif yf == -1: reconstructed_qs[:, 0] = True
+#             elif abs(corner) == 1:
+#                 if xf > 0: xf = 1
+#                 elif xf < 0: xf = 0
+#                 if yf > 0: yf = 0
+#                 elif yf < 0: yf = 1
+#                 reconstructed_qs[yf][xf] = True
+#             else: raise Exception("Error")
+#     for rq in reconstructed_qs.flatten():
+#         if not rq:
+#             break
+#     else:
+#         q_recons = quadrants
