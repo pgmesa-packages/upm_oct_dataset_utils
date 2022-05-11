@@ -83,8 +83,9 @@ def reconstruct_OCTA(cube:Cube, kernel_size=(2,2), strides=(1,1),
     assert kernel_size[0] >= strides[0] and kernel_size[1] >= strides[1]
     cube_array = norm_volume(cube.value, bit_depth=bit_depth, max_value=1)
     assert np.min(cube_array) >= 0 and np.max(cube_array) <= 1
-    _, y_elements, x_elements = cube_array.shape
-
+            
+    _, y_elements, x_elements = cube_array.shape        
+            
     OCTA_reconstructed = Cube(cube_array).project().as_nparray()
 
     # Dividimos en sectores, filtramos las capas de la imagen consideradas como ruido y
@@ -304,9 +305,9 @@ class RawProcessingError(Exception):
     pass
 
 def process_oct(raw_path:str, width_pixels:int, height_pixels:int, num_images:int=1, horizontal_flip:bool=True,
-                    vertical_flip:bool=True, resize:tuple[int, int]=None, reverse:bool=True) -> Cube:
+                    vertical_flip:bool=False, resize:tuple[int, int]=None, reverse:bool=True) -> Cube:
     """ Returns Cube Object.
-        --> horizontal, vertical and reverse options are True by default due to cirrus volumes are
+        --> horizontal_flip and reverse options are True by default due to that cirrus volumes are
         saved backwards
 
         -> reads cube with bit_depth=16, mode='unsigned'
