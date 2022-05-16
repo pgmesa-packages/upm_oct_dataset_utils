@@ -294,7 +294,7 @@ def segment_vascular_layer(octa_volume, oct_volume, num_threads:int=1, seg_windo
     if num_threads > 1:
         with conc.ThreadPoolExecutor() as executor:
             threads = []
-            for oct_slices, octa_slices in threads_slices:
+            for octa_slices, oct_slices in threads_slices:
                 thread = executor.submit(
                     __get_masks, 
                     oct_slices=oct_slices, smooth_kernel_size=smooth_kernel_size
@@ -350,7 +350,7 @@ def __get_masks(oct_slices, smooth_kernel_size):
 
 
         image_felzenszwalb = seg.felzenszwalb(
-            mask, scale=1, min_size=1500, channel_axis=None, sigma=1
+            mask*img, scale=1, min_size=1500, channel_axis=None, sigma=1
         )
         unique_regions = np.unique(image_felzenszwalb).size
         label0 = unique_regions

@@ -5,6 +5,7 @@
 # Custom
 tests.py
 tests
+tests*
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
