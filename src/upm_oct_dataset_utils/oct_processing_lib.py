@@ -525,7 +525,7 @@ def process_oct(raw_path:str, width_pixels:int, height_pixels:int, num_images:in
             if vertical_flip: slice_ = np.flipud(slice_)
             cube_data.append(slice_)
 
-    cube_data = np.array(cube_data)
+    cube_data = np.array(cube_data).astype(np.uint16)
 
     if reverse: cube_data = np.flip(cube_data, axis=1)
     
