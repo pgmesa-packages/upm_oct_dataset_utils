@@ -6,6 +6,8 @@
 tests.py
 tests
 tests*
+oct_sup_vascular_seg_model
+*.h5
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
