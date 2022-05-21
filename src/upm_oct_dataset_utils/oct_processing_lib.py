@@ -6,10 +6,9 @@ from copy import deepcopy
 
 import tqdm
 
-from scipy import signal
+import cv2
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 import tensorflow.keras as keras
 
 from .visualization_lib import show_image
@@ -80,12 +79,13 @@ class Cube():
             hflipped.append(np.fliplr(slice_))
         return Cube(np.array(hflipped))
 
-def segment_vascular_layer(octa_volume:np.ndarray, oct_volume:np.ndarray, img_bit_depth:int=16):
+
+def segment_vascular_layer(octa_volume:np.ndarray, oct_volume:np.ndarray, img_bit_depth:int=16, filt=False):
     # Cargamos el modelo de segmentacion
     input_width = 384; input_height = 384; input_size = (input_width, input_height)
-    model_fname = "96_0.85_unet-mini_val-jaccard-coef_adam_384-384_100_16_0.001.h5"
+    model_fname = "70_0.81_unet-mini_val-jaccard-coef_adam_384-384_70_16_0.001.h5"
     #model_fname = f"197_0.89_unet-mini_val-jaccard-coef_adam_{input_width}-{input_height}_200_16_0.001.h5"
-    model_url = "https://github.com/pgmesa-packages/upm_oct_dataset_utils/files/8747797/96_0.85_unet-mini_val-jaccard-coef_adam_384-384_100_16_0.001.zip"
+    model_url = "https://github.com/pgmesa-packages/upm_oct_dataset_utils/files/8748253/70_0.81_unet-mini_val-jaccard-coef_adam_384-384_70_16_0.001.zip"
     seg_model_dir = this_dir_path/"oct_sup_vascular_seg_model"
     model_path = seg_model_dir/model_fname
     if not os.path.exists(seg_model_dir):
@@ -106,6 +106,9 @@ def segment_vascular_layer(octa_volume:np.ndarray, oct_volume:np.ndarray, img_bi
     masks = []
     pbar = tqdm.tqdm(total=oct_volume.shape[0], desc="Segmenting volume", unit=" bscans")
     for oct_bscan in oct_volume_norm:
+        if filt:
+            kernel = np.ones((7,7),np.float32)/49
+            oct_bscan = oct_bscan*cv2.filter2D(oct_bscan,-1,kernel)
         oct_bscan_res = np.array(Image.fromarray(oct_bscan).resize(input_size))
         rgb_bscan = np.stack((oct_bscan_res,)*3, axis=-1)
         bs_input = np.expand_dims(rgb_bscan, axis=0)
@@ -147,96 +150,6 @@ def norm_volume(volume, bit_depth:int=None, max_value=1, np_type=None):
         norm_v = norm_v.astype(np_type)
     
     return norm_v
-
-def butter_lowpass(cutoff, fs=None, order=5):
-    nyq = 0.5 * fs
-    normal_cutoff = cutoff / nyq
-    b, a = signal.butter(order, normal_cutoff, btype='low', analog=False)
-    return b, a
-
-def butter_lowpass_filter(data, cutoff, fs=None, order=5):
-    b, a = butter_lowpass(cutoff, fs=fs, order=order)
-    y = signal.lfilter(b, a, data)
-    return y
-
-def show_lowfilter_response(x, y, order=6, fs=30.0, cutoff=3.667):
-    # Setting standard filter requirements.
-    b, a = butter_lowpass(cutoff,fs=fs, order=6)
-
-    # Plotting the frequency response.
-    w, h = signal.freqz(b, a, worN=8000)
-    plt.subplot(2, 1, 1)
-    plt.plot(0.5*fs*w/np.pi, np.abs(h), 'b')
-    plt.plot(cutoff, 0.5*np.sqrt(2), 'ko')
-    plt.axvline(cutoff, color='k')
-    plt.xlim(0, 0.5*fs)
-    plt.title("Lowpass Filter Frequency Response")
-    plt.xlabel('Frequency [Hz]')
-    plt.grid()
-    
-    #Filtering and plotting
-    y_filtered = butter_lowpass_filter(y, cutoff, fs, order)
-
-    plt.subplot(2, 1, 2)
-    plt.plot(x, y, 'b-', label='data')
-    plt.plot(x, y_filtered, 'g-', linewidth=2, label='filtered data')
-    plt.xlabel('Time [sec]')
-    plt.grid()
-    plt.legend()
-
-    plt.subplots_adjust(hspace=0.35)
-    plt.show()
-
-def get_mins(array) -> tuple:
-    mins = []; locations = []
-    for i, elem in enumerate(array):
-        if i+1 < len(array) and elem < array[i-1] and elem < array[i+1]:
-            mins.append(elem); locations.append(i)
-
-    return locations, mins
-
-def convolve2D(image, kernel, padding=0, strides=1):
-    # Cross Correlation
-    kernel = np.flipud(np.fliplr(kernel))
-
-    # Gather Shapes of Kernel + Image + Padding
-    xKernShape = kernel.shape[0]
-    yKernShape = kernel.shape[1]
-    xImgShape = image.shape[0]
-    yImgShape = image.shape[1]
-
-    # Shape of Output Convolution
-    xOutput = int(((xImgShape - xKernShape + 2 * padding) / strides) + 1)
-    yOutput = int(((yImgShape - yKernShape + 2 * padding) / strides) + 1)
-    output = np.zeros((xOutput, yOutput))
-
-    # Apply Equal Padding to All Sides
-    if padding != 0:
-        imagePadded = np.zeros((image.shape[0] + padding*2, image.shape[1] + padding*2))
-        imagePadded[int(padding):int(-1 * padding), int(padding):int(-1 * padding)] = image
-        print(imagePadded)
-    else:
-        imagePadded = image
-
-    # Iterate through image
-    for y in range(image.shape[1]):
-        # Exit Convolution
-        if y > image.shape[1] - yKernShape:
-            break
-        # Only Convolve if y has gone down by the specified Strides
-        if y % strides == 0:
-            for x in range(image.shape[0]):
-                # Go to next row once kernel is out of bounds
-                if x > image.shape[0] - xKernShape:
-                    break
-                try:
-                    # Only Convolve if x has moved by the specified Strides
-                    if x % strides == 0:
-                        output[x, y] = (kernel * imagePadded[x: x + xKernShape, y: y + yKernShape]).sum()
-                except:
-                    break
-
-    return output
 
 class RawProcessingError(Exception):
     pass
