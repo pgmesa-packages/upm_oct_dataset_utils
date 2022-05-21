@@ -91,8 +91,8 @@ def segment_vascular_layer(octa_volume:np.ndarray, oct_volume:np.ndarray, img_bi
     if not os.path.exists(seg_model_dir):
         os.mkdir(seg_model_dir)
     if not os.path.exists(model_path):
-        keras.utils.data_utils.get_file(
-            "197_0.89_unet-mini_val-jaccard-coef_adam_384-384_200_16_0.001.zip",
+        keras.utils.get_file(
+            model_fname.replace(".h5", ".zip"),
             origin=model_url,
             archive_format='zip',
             extract=True,
